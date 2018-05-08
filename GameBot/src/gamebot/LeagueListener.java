@@ -8,6 +8,7 @@ import com.merakianalytics.orianna.types.core.league.LeaguePosition;
 import com.merakianalytics.orianna.types.core.league.LeaguePositions;
 import com.merakianalytics.orianna.types.core.spectator.CurrentMatch;
 import com.merakianalytics.orianna.types.core.spectator.Player;
+import com.merakianalytics.orianna.types.core.staticdata.Champion;
 import com.merakianalytics.orianna.types.core.summoner.Summoner;
 import java.io.File;
 import java.util.ArrayList;
@@ -18,7 +19,6 @@ import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
-import org.joda.time.Instant;
 import org.joda.time.Interval;
 
 /**
@@ -210,7 +210,7 @@ public class LeagueListener extends ListenerAdapter{
      */
     private void setUpOrianna(){
         //Set up the config, api key, and default regian
-        Orianna.loadConfiguration(new File("Z:/colin/Computing/DiscordBot/NewBot/src/newbot/orianna-config.json"));
+        Orianna.loadConfiguration(new File(GameBot.config.getProperty("oriannaConfigPath")));
         Orianna.setRiotAPIKey(GameBot.config.getProperty("riotKey"));
         Orianna.setDefaultRegion(Region.valueOf(GameBot.config.getProperty("riotDefaultRegion")));
     }
@@ -448,7 +448,7 @@ public class LeagueListener extends ListenerAdapter{
                     .append(" pts\n");
         }
         System.out.println(summoner.isInGame());
-         //Send message in channel it was received in
+        //Send message in channel it was received in
         event.getChannel().sendMessage(outputString.toString()).queue();
     }
     
@@ -460,6 +460,7 @@ public class LeagueListener extends ListenerAdapter{
      * @param event - MessageReceivedEvent instance generated when the bot
      * a message the bot can read it received.
      */
+    @SuppressWarnings("empty-statement")
     private void summonerCurrentGame(ArrayList args, String region, MessageReceivedEvent event){
         //Reset output string, set up Orianna, and summoner name
         setUpOrianna();
@@ -494,10 +495,20 @@ public class LeagueListener extends ListenerAdapter{
                     .append("**Duration: **").append(gameDuration).append("\n")
                     .append("**Team Side:**").append(player.getTeam().getSide().name()).append("\n")
                     .append("**Summoner Spells:** D - ").append(player.getSummonerSpellD().getName())
-                    .append(" F - ").append(player.getSummonerSpellF().getName()).append("\n");
-                    //.append("**Bans: ** Blue:").append(currentGame.getBlueTeam().getBans().toString()).append(currentGame.getRedTeam().getBans().toString()).append("\n");
+                    .append(" F - ").append(player.getSummonerSpellF().getName()).append("\n")
+                    .append("__**Bans:**__\n**Blue:** ");
+            //Get all blue teams bans and output them
+            currentGame.getBlueTeam().getBans().forEach((blueBan) -> {
+                outputString.append(blueBan.getName()).append(" | ");
+            });
+            outputString.append("\n**Red:** ");
+            //Get all blue teams bans and output them
+            currentGame.getRedTeam().getBans().forEach((redBan) -> {
+                outputString.append(redBan.getName()).append(" | ");
+            });
+            //Send message in channel it was received in
             event.getChannel().sendMessage(outputString.toString()).queue();
-        }//NEED DURATION
+        }
         catch(NullPointerException e){
             outputString.append("**").append(summonerName).append("** is not in game on the **")
                     .append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("** server");
