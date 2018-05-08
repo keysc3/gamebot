@@ -334,7 +334,7 @@ public class LeagueListener extends ListenerAdapter{
     /**
      * createTeamMap - Creates an HashMap with keys being the Orianna Team
      * ENUM's and values being a more user friendly format of the ENUM.
-     * @return regionMap - HashMap of ENUM team names to user friendly team names
+     * @return teamMap - HashMap of ENUM team names to user friendly team names
      */
     private static Map<String, String> createTeamMap(){
         Map<String, String> teamMap = new HashMap<>();
