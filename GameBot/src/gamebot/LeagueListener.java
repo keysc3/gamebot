@@ -8,7 +8,6 @@ import com.merakianalytics.orianna.types.core.league.LeaguePosition;
 import com.merakianalytics.orianna.types.core.league.LeaguePositions;
 import com.merakianalytics.orianna.types.core.spectator.CurrentMatch;
 import com.merakianalytics.orianna.types.core.spectator.Player;
-import com.merakianalytics.orianna.types.core.staticdata.Champion;
 import com.merakianalytics.orianna.types.core.summoner.Summoner;
 import java.io.File;
 import java.util.ArrayList;
@@ -36,6 +35,7 @@ import org.joda.time.Interval;
  * REGIONABB_MAP            HashMap - keys are the region abbreviations, values are the API format of regions
  * QUEUE_MAP                HashMap - keys are the API format of queues, values are the readable format of queues
  * TIER_MAP                 HashMap - keys are the API format of tiers, values are the readable format of tiers
+ * TEAM_MAP                 HashMap - keys are the API format of teams, values are the readable format of teams
  * 
  * private
  * 
@@ -53,6 +53,7 @@ public class LeagueListener extends ListenerAdapter{
     private static final Map<String, String> REGIONABB_MAP = createRegionAbbMap();
     private static final Map<String, String> QUEUE_MAP = createQueueMap();
     private static final Map<String, String> TIER_MAP = createTierMap();
+    private static final Map<String, String> TEAM_MAP = createTeamMap();
     private int queueWins;
     private int queueLosses;
     private int queuePercent;
@@ -331,6 +332,18 @@ public class LeagueListener extends ListenerAdapter{
     }
     
     /**
+     * createTeamMap - Creates an HashMap with keys being the Orianna Team
+     * ENUM's and values being a more user friendly format of the ENUM.
+     * @return teamMap - HashMap of ENUM team names to user friendly team names
+     */
+    private static Map<String, String> createTeamMap(){
+        Map<String, String> teamMap = new HashMap<>();
+        teamMap.put("BLUE", "Blue");
+        teamMap.put("RED", "Red");
+        return teamMap;
+    }
+    
+    /**
      * regionOptions - Creates a StringBuilder of all the available regions 
      * and their abbreviations.
      * @return regionString - String of available regions and their abbreviations
@@ -493,7 +506,7 @@ public class LeagueListener extends ListenerAdapter{
                     .append("**Server:** ").append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("\n")
                     .append("**Champion: **").append(player.getChampion().getName()).append("\n")
                     .append("**Duration: **").append(gameDuration).append("\n")
-                    .append("**Team Side:**").append(player.getTeam().getSide().name()).append("\n")
+                    .append("**Team Side: **").append(TEAM_MAP.get(player.getTeam().getSide().name())).append("\n")
                     .append("**Summoner Spells:** D - ").append(player.getSummonerSpellD().getName())
                     .append(" F - ").append(player.getSummonerSpellF().getName()).append("\n")
                     .append("__**Bans:**__\n**Blue:** ");
