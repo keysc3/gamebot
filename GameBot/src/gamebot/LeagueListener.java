@@ -311,6 +311,7 @@ public class LeagueListener extends ListenerAdapter{
         queueMap.put("NORMAL_5X5_DRAFT", "Summoners Rift Draft 5v5");
         queueMap.put("ARAM", "Howling Abyss ARAM 5v5");
         queueMap.put("TEAM_BUILDER_RANKED_SOLO", "Solo/Duo 5v5");
+        queueMap.put("TB_BLIND_SUMMONERS_RIFT_5x5", "Summoners Rift Blind 5v5");
         return queueMap;
     }
     
@@ -497,28 +498,36 @@ public class LeagueListener extends ListenerAdapter{
         final CurrentMatch currentGame = summoner.getCurrentMatch();
         //summoner.isInGame does not work, using try and catch to check if they are in game
         try{
+            //Get game type and duration
+            String queueName = QUEUE_MAP.get(currentGame.getQueue().toString());
             final Player player = currentGame.getParticipants().find(summoner);
             Interval interval = new Interval(currentGame.getCreationTime(), DateTime.now());
+            //Get proper seconds format
+            String seconds = String.valueOf((int)interval.toDuration().getStandardSeconds()%60);
+            if(seconds.length() == 1)
+                seconds = "0" + seconds;
+            //Combine minutes and seconds for game duration
             String gameDuration = String.valueOf((int)interval.toDuration().getStandardSeconds()/60)
-                    + ":" + String.valueOf((int)interval.toDuration().getStandardSeconds()%60);
+                    + ":" + seconds;
+            
             outputString.append("**").append(summonerName).append("** is in a **")
-                    .append(QUEUE_MAP.get(currentGame.getQueue().toString())).append("** game!\n")
+                    .append(queueName).append("** game!\n")
                     .append("**Server:** ").append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("\n")
                     .append("**Champion: **").append(player.getChampion().getName()).append("\n")
                     .append("**Duration: **").append(gameDuration).append("\n")
-                    .append("**Team Side: **").append(TEAM_MAP.get(player.getTeam().getSide().name())).append("\n")
-                    .append("**Summoner Spells:** D - ").append(player.getSummonerSpellD().getName())
-                    .append(" F - ").append(player.getSummonerSpellF().getName()).append("\n")
-                    .append("__**Bans:**__\n**Blue:** ");
-            //Get all blue teams bans and output them
-            currentGame.getBlueTeam().getBans().forEach((blueBan) -> {
-                outputString.append(blueBan.getName()).append(" | ");
-            });
-            outputString.append("\n**Red:** ");
-            //Get all blue teams bans and output them
-            currentGame.getRedTeam().getBans().forEach((redBan) -> {
-                outputString.append(redBan.getName()).append(" | ");
-            });
+                    .append("**Team Side: **").append(TEAM_MAP.get(player.getTeam().getSide().name())).append("\n");
+            if(queueName.equals("Solo/Duo 5v5") ||queueName.equals("Summoners Rift Draft 5v5")){
+                outputString.append("__**Bans:**__\n**Blue:** ");
+                //Get all blue teams bans and output them
+                currentGame.getBlueTeam().getBans().forEach((blueBan) -> {
+                    outputString.append(blueBan.getName()).append(" | ");
+                });
+                outputString.append("\n**Red:** ");
+                //Get all blue teams bans and output them
+                currentGame.getRedTeam().getBans().forEach((redBan) -> {
+                    outputString.append(redBan.getName()).append(" | ");
+                });
+            }
             //Send message in channel it was received in
             event.getChannel().sendMessage(outputString.toString()).queue();
         }
