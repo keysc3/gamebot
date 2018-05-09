@@ -160,6 +160,19 @@ public class LeagueListener extends ListenerAdapter{
                 //Process the summoner
                 summonerCurrentGame(args, "NA", event);
                 break;
+            case "lolCurrentGameRegion":
+                /*Must have a region to search on and a summoner to search for.
+                The region given must be a key in the abbreviation hashmap*/
+                if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
+                   event.getChannel().sendMessage("**Usage: !lolCurrentGameRegion <Region> <Summoner_Name>**\n" + regionOptions()).queue();
+                   break;
+                }
+                //Get the region abbreviation given and remove it from the args
+                regionGiven = args.get(0);
+                args.remove(0);
+                //Process the summoner
+                summonerCurrentGame(args, regionGiven, event);
+                break;
                 
             /*
             case "summonerQueueRank":
@@ -532,6 +545,7 @@ public class LeagueListener extends ListenerAdapter{
             event.getChannel().sendMessage(outputString.toString()).queue();
         }
         catch(NullPointerException e){
+            outputString.setLength(0);
             outputString.append("**").append(summonerName).append("** is not in game on the **")
                     .append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("** server");
             event.getChannel().sendMessage(outputString.toString()).queue();
