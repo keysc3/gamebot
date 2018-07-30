@@ -35,13 +35,14 @@ public class GameBot {
         InputStream input = null;
         //Try and catch for exceptions
         try{
-            input = new FileInputStream("Z:/colin/Computing/DiscordBot/NewBot/src/gamebot/gamebot-config.properties");
+            input = new FileInputStream("/Users/Keeeeys/cmptLabs/Repos/gamebot/GameBot/src/gamebot/gamebot-config.properties");
             config.load(input);
             //Start the bot, set it to my bots token, attach wanted listeners.
             JDA api = new JDABuilder(AccountType.BOT)
                     .setToken(config.getProperty("botToken"))
                     .addEventListener(new MyListener())
                     .addEventListener(new LeagueListener())
+                    .addEventListener(new FortniteListener())
                     .buildBlocking();
             System.out.println("I'm Online!\nI'm Online!");
         }

@@ -25,7 +25,8 @@ public class MyListener extends ListenerAdapter {
         String message = event.getMessage().getContentDisplay();
         //Dont respond to other bots, this bot, and only handle basic commands
         if (event.getAuthor().isBot() || !message.startsWith(GameBot.config.getProperty("prefix"))
-                || message.startsWith(GameBot.config.getProperty("prefix") + "lol")) return;
+                || message.startsWith(GameBot.config.getProperty("prefix") + "lol")
+                || message.startsWith(GameBot.config.getProperty("prefix") + "fn")) return;
         //Split the args on a space to get them all
         ArrayList<String> args = new ArrayList<>(Arrays.asList(message.split(" ")));
         //Get the command without the prefix
