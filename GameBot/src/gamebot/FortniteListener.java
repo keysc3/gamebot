@@ -5,6 +5,7 @@
  */
 package gamebot;
 
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -20,16 +21,38 @@ import java.util.logging.Logger;
 import javax.net.ssl.HttpsURLConnection;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
- *
- * @author Keeeeys
+ *Purpose: This class implements a ListenerAdapter for a discord bot. It checks
+ * for all the Fortnite related commands. The listener outputs data from
+ * the FortniteTracker API through the use of HTTPS 'GET' requests
+ * 
+ * @author Colin Keys
+ * 
+ * Variables                Description
+ * 
+ * private
+ * 
+ * outputString             StringBuilder - used to format output
+ * throttler                A RateLimiter to throttle request to the API
+ * playerJson               A JSONObject to hold the currently requested players stats
+ * 
  */
 public class FortniteListener extends ListenerAdapter {
     private final StringBuilder outputString = new StringBuilder();
+    //1 request per 2 seconds
+    private RateLimiter throttle = RateLimiter.create(0.5);
+    private JSONObject playerJson;
     
+    /**
+     * onMessageReceived - Handles the Listeners actions when a message is received
+     * in a channel the bot has read access to.
+     * @param event - MessageReceivedEvent instance generated when the bot
+     * a message the bot can read it received.
+     */
     @Override
     public void onMessageReceived(MessageReceivedEvent event){
         //Get the readable contents of the message
@@ -60,23 +83,35 @@ public class FortniteListener extends ListenerAdapter {
                    event.getChannel().sendMessage("**Usage: !fn <Epic_Name>**").queue();
                    break;
                 }
-        {
-            try {
-                makeRequest("pc", args.get(0));
-            } catch (ProtocolException ex) {
-                Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
-            } catch (IOException ex) {
-                Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
+                {
+                    try {
+                        playerJson = makeRequest("pc", StringUtils.join(args, ' '));
+                        getLifeTimeStats(playerJson, event);
+                    } catch (ProtocolException ex) {
+                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (IOException ex) {
+                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
                 break;
         }
     }
     
-    private void makeRequest(String platform, String epicName) throws MalformedURLException, ProtocolException, IOException{
-        //StringBuilder result = new StringBuilder();
+     /**
+     * makeRequest - Makes a request to the FortniteTracker API to get the given players information
+     * @param platform - A String indicating the platform the player is on
+     * @param epicName - A String of the players EpicGames name
+     * @return obj - A JSONObject containing all the player information given from the API 
+     */
+    private JSONObject makeRequest(String platform, String epicName) throws MalformedURLException, ProtocolException, IOException{
+        //Replace spaces for proper url
+        epicName = epicName.replace(" ", "%20");
+        
         String urlString = "https://api.fortnitetracker.com/v1/profile/" + platform + "/" + epicName;
         URL url = new URL(urlString);
+        //Make sure to throttle if needed
+        throttle.acquire();
+        //Create Connection
         HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         con.setRequestProperty("Accept", "application/json");
@@ -95,12 +130,31 @@ public class FortniteListener extends ListenerAdapter {
         }
         in.close();
         JSONObject obj = new JSONObject(response.toString());
-        System.out.println(obj.getJSONObject("stats").getJSONObject("p2").getJSONObject("kd").getString("displayValue"));
-        String test = obj.getString("accountId");
-        //JSONObject soloOverall = stats.getJSONObject("p2");
-        //String score = soloOverall.getJSONObject("score").getString("displayValue");
-        //print in String
-        System.out.println(test);
+        return obj;
+    }
+    
+    /**
+     * getLifeTimeStats - Gets the lifetime stats from the given playerStats JSONobject
+     * @param playerStats - A JSONObject of the requested players stats
+     * @param event - MessageReceivedEvent instance generated when the bot
+     * a message the bot can read it received.
+     */
+    private void getLifeTimeStats(JSONObject playerStats, MessageReceivedEvent event){
+        outputString.setLength(0);
+        JSONArray lifetimeArray = playerStats.getJSONArray("lifeTimeStats");
         
+        JSONObject info = lifetimeArray.getJSONObject(8);
+        outputString.append("Wins: ").append(info.getString("value")).append("\n");
+        
+        info = lifetimeArray.getJSONObject(9);
+        outputString.append("Win %: ").append(info.getString("value")).append("\n");
+        
+        info = lifetimeArray.getJSONObject(10);
+        outputString.append("Kills: ").append(info.getString("value")).append("\n");
+        
+        info = lifetimeArray.getJSONObject(11);
+        outputString.append("K/D: ").append(info.getString("value"));
+        
+        event.getChannel().sendMessage(outputString.toString()).queue();
     }
 }
