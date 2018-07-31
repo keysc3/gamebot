@@ -79,23 +79,59 @@ public class FortniteListener extends ListenerAdapter {
                 //Send message in channel it was received
                 event.getChannel().sendMessage(outputString.toString()).queue();
                 break;
-            case "fn":
+            case "fnLifetime":
                 //Must have a name to search for
                 if(numArgs < 1){
-                   event.getChannel().sendMessage("**Usage: !fn <Epic_Name>**").queue();
+                   event.getChannel().sendMessage("**Usage: !fnLifetime <Epic_Name>**").queue();
                    break;
                 }
                 //Incase they had a space in their epic name
                 epicName = StringUtils.join(args, ' ');
                 {
                     try {
-                        //Create lifetime and overall statistics output
+                        //Create lifetime output
                         outputString.append("__**~ ").append(epicName).append(" ~**__\n\n");
                         playerJson = makeRequest("pc", epicName);
                         outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
-                        outputString.append(getOverallSolos(playerJson)).append("\n\n");
-                        outputString.append(getOverallDuos(playerJson)).append("\n\n");
-                        outputString.append(getOverallSquads(playerJson));
+                        //Solos output
+                        outputString.append("__***Overall Solos***__\n");
+                        outputString.append(getOverallStats(playerJson, "p2")).append("\n\n");
+                        //Duos output
+                        outputString.append("__***Overall Duos***__\n");
+                        outputString.append(getOverallStats(playerJson, "p10")).append("\n\n");
+                        //Squads output
+                        outputString.append("__***Overall Squads***__\n");
+                        outputString.append(getOverallStats(playerJson, "p9"));
+                        event.getChannel().sendMessage(outputString.toString()).queue();
+                    } catch (ProtocolException ex) {
+                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+                    } catch (IOException ex) {
+                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+                break;
+            case "fnCurrent":
+                //Must have a name to search for
+                if(numArgs < 1){
+                   event.getChannel().sendMessage("**Usage: !fnCurrent <Epic_Name>**").queue();
+                   break;
+                }
+                //Incase they had a space in their epic name
+                epicName = StringUtils.join(args, ' ');
+                {
+                    try {
+                        //Create lifetime output
+                        outputString.append("__**~ ").append(epicName).append(" ~**__\n\n");
+                        playerJson = makeRequest("pc", epicName);
+                        //Solos output
+                        outputString.append("__***Current Solos***__\n");
+                        outputString.append(getOverallStats(playerJson, "curr_p2")).append("\n\n");
+                        //Duos output
+                        outputString.append("__***Current Duos***__\n");
+                        outputString.append(getOverallStats(playerJson, "curr_p10")).append("\n\n");
+                        //Squads output
+                        outputString.append("__***Current Squads***__\n");
+                        outputString.append(getOverallStats(playerJson, "curr_p9"));
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
                         Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -154,6 +190,8 @@ public class FortniteListener extends ListenerAdapter {
         tempString.append("__***Lifetime***__\n");
         //Get the lifetime JSONObject
         JSONArray lifetimeArray = playerStats.getJSONArray("lifeTimeStats");
+        //Get the lifetime games played  value
+        tempString.append("**Games Played:** ").append(lifetimeArray.getJSONObject(7).getString("value")).append("\n");
         //Get the lifetime wins value
         tempString.append("**Wins:** ").append(lifetimeArray.getJSONObject(8).getString("value")).append("\n");
         //Get the lifetime win% value
@@ -166,68 +204,26 @@ public class FortniteListener extends ListenerAdapter {
     }
     
     /**
-     * getOverallSolos - Gets the overall solo statistics from the given playerStats JSONobject
+     * getOverallStats - Gets the overall solo statistics from the given playerStats JSONobject
      * @param playerStats - A JSONObject of the requested players statistics
+     * @param gameMode - A string of the game mode to get statistics for
      * @return tempString - A String of the needed statistics 
      */
-    private String getOverallSolos(JSONObject playerStats){
-        //Initiate output stringbuilder and header
+    private String getOverallStats(JSONObject playerStats, String gameMode){
+        //Initiate output stringbuilder
         StringBuilder tempString = new StringBuilder();
-        tempString.append("__***Overall Solos***__\n");
         //Get the overall solos JSONObject (denoted as p2 in playerStats JSON)
-        JSONObject solos = playerStats.getJSONObject("stats").getJSONObject("p2");
-        //Get the overall solos wins value
+        JSONObject solos = playerStats.getJSONObject("stats").getJSONObject(gameMode);
+        //Get the overall gameMode games played value
+        tempString.append("**Games Played:** ").append(solos.getJSONObject("matches").getString("displayValue")).append("\n");
+        //Get the overall gameMode wins value
         tempString.append("**Wins:** ").append(solos.getJSONObject("top1").getString("displayValue")).append("\n");
-        //Get the overall solos win% value
+        //Get the overall gameMode win% value
         tempString.append("**Win %:** ").append(solos.getJSONObject("winRatio").getString("displayValue")).append("\n");
-        //Get the overall solos kills value
+        //Get the overall gameMode kills value
         tempString.append("**Kills:** ").append(solos.getJSONObject("kills").getString("displayValue")).append("\n");
-        //Get the overall solos kd value
+        //Get the overall gameMode kd value
         tempString.append("**K/D:** ").append(solos.getJSONObject("kd").getString("displayValue"));
-        return tempString.toString();
-    }
-    
-    /**
-     * getOverallDuos - Gets the overall duo statistics from the given playerStats JSONobject
-     * @param playerStats - A JSONObject of the requested players statistics
-     * @return tempString - A String of the needed statistics 
-     */
-    private String getOverallDuos(JSONObject playerStats){
-        //Initiate output stringbuilder and header
-        StringBuilder tempString = new StringBuilder();
-        tempString.append("__***Overall Duos***__\n");
-        //Get the overall duos JSONObject (denoted as p10 in playerStats JSON)
-        JSONObject duos = playerStats.getJSONObject("stats").getJSONObject("p10");
-        //Get the overall duos wins value
-        tempString.append("**Wins:** ").append(duos.getJSONObject("top1").getString("displayValue")).append("\n");
-        //Get the overall duos win% value
-        tempString.append("**Win %:** ").append(duos.getJSONObject("winRatio").getString("displayValue")).append("\n");
-        //Get the overall duos kills value
-        tempString.append("**Kills:** ").append(duos.getJSONObject("kills").getString("displayValue")).append("\n");
-        //Get the overall duos kd value
-        tempString.append("**K/D:** ").append(duos.getJSONObject("kd").getString("displayValue"));
-        return tempString.toString();
-    }
-    
-    /**
-     * getOverallSquads - Gets the overall duo statistics from the given playerStats JSONobject
-     * @param playerStats - A JSONObject of the requested players statistics
-     * @return tempString - A String of the needed statistics 
-     */
-    private String getOverallSquads(JSONObject playerStats){
-        //Initiate output stringbuilder and header
-        StringBuilder tempString = new StringBuilder();
-        tempString.append("__***Overall Squads***__\n");
-        //Get the overall squads JSONObject (denoted as p9 in playerStats JSON)
-        JSONObject squads = playerStats.getJSONObject("stats").getJSONObject("p9");
-        //Get the overall squads wins value
-        tempString.append("**Wins:** ").append(squads.getJSONObject("top1").getString("displayValue")).append("\n");
-        //Get the overall squads win% value
-        tempString.append("**Win %:** ").append(squads.getJSONObject("winRatio").getString("displayValue")).append("\n");
-        //Get the overall squads kills value
-        tempString.append("**Kills:** ").append(squads.getJSONObject("kills").getString("displayValue")).append("\n");
-        //Get the overall squads kd value
-        tempString.append("**K/D:** ").append(squads.getJSONObject("kd").getString("displayValue"));
         return tempString.toString();
     }
 }
