@@ -38,7 +38,7 @@ import org.json.JSONObject;
  * 
  * outputString             StringBuilder - used to format output
  * throttler                A RateLimiter to throttle request to the API
- * playerJson               A JSONObject to hold the currently requested players stats
+ * playerJson               A JSONObject to hold the currently requested players statistics
  * 
  */
 public class FortniteListener extends ListenerAdapter {
@@ -46,6 +46,7 @@ public class FortniteListener extends ListenerAdapter {
     //1 request per 2 seconds
     private RateLimiter throttle = RateLimiter.create(0.5);
     private JSONObject playerJson;
+    private String epicName;
     
     /**
      * onMessageReceived - Handles the Listeners actions when a message is received
@@ -68,10 +69,10 @@ public class FortniteListener extends ListenerAdapter {
         
         //Get number of args
         int numArgs = args.size();
-        
+        outputString.setLength(0);
         //Switch used to process the command given
         switch(command){
-            //Outputs all the League of Legends related commands
+            //Outputs all the Fortnite related commands
             case "fnHelp":
                 outputString.setLength(0);
                 outputString.append("__**Fortnite Commands**__\n");
@@ -83,10 +84,14 @@ public class FortniteListener extends ListenerAdapter {
                    event.getChannel().sendMessage("**Usage: !fn <Epic_Name>**").queue();
                    break;
                 }
+                epicName = StringUtils.join(args, ' ');
                 {
                     try {
-                        playerJson = makeRequest("pc", StringUtils.join(args, ' '));
-                        getLifeTimeStats(playerJson, event);
+                        outputString.append("__**~ ").append(epicName).append(" ~**__\n\n");
+                        playerJson = makeRequest("pc", epicName);
+                        outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
+                        outputString.append(getOverallSolos(playerJson));
+                        event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
                         Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
                     } catch (IOException ex) {
@@ -134,27 +139,51 @@ public class FortniteListener extends ListenerAdapter {
     }
     
     /**
-     * getLifeTimeStats - Gets the lifetime stats from the given playerStats JSONobject
-     * @param playerStats - A JSONObject of the requested players stats
-     * @param event - MessageReceivedEvent instance generated when the bot
-     * a message the bot can read it received.
+     * getLifeTimeStats - Gets the lifetime statistics from the given playerStats JSONobject
+     * @param playerStats - A JSONObject of the requested players statistics
+     * @return tempString - A String of the wanted lifetime statistics
      */
-    private void getLifeTimeStats(JSONObject playerStats, MessageReceivedEvent event){
-        outputString.setLength(0);
+    private String getLifeTimeStats(JSONObject playerStats){
+        StringBuilder tempString = new StringBuilder();
+        tempString.append("__***Lifetime***__\n");
         JSONArray lifetimeArray = playerStats.getJSONArray("lifeTimeStats");
         
         JSONObject info = lifetimeArray.getJSONObject(8);
-        outputString.append("Wins: ").append(info.getString("value")).append("\n");
+        tempString.append("**Wins:** ").append(info.getString("value")).append("\n");
         
         info = lifetimeArray.getJSONObject(9);
-        outputString.append("Win %: ").append(info.getString("value")).append("\n");
+        tempString.append("**Win %:** ").append(info.getString("value")).append("\n");
         
         info = lifetimeArray.getJSONObject(10);
-        outputString.append("Kills: ").append(info.getString("value")).append("\n");
+        tempString.append("**Kills:** ").append(info.getString("value")).append("\n");
         
         info = lifetimeArray.getJSONObject(11);
-        outputString.append("K/D: ").append(info.getString("value"));
+        tempString.append("**K/D:** ").append(info.getString("value"));
+        return tempString.toString();
+    }
+    
+    /**
+     * getLifeTimeStats - Gets the lifetime statistics from the given playerStats JSONobject
+     * @param playerStats - A JSONObject of the requested players statistics
+     * @return tempString - A String of the needed statistics 
+     */
+    private String getOverallSolos(JSONObject playerStats){
+        StringBuilder tempString = new StringBuilder();
+        tempString.append("__***Overall Solos***__\n");
+        JSONObject stats = playerStats.getJSONObject("stats");
         
-        event.getChannel().sendMessage(outputString.toString()).queue();
+        JSONObject solos = stats.getJSONObject("p2");
+        JSONObject tempObj = solos.getJSONObject("top1");
+        tempString.append("**Wins:** ").append(tempObj.getString("displayValue")).append("\n");
+        
+        tempObj = solos.getJSONObject("winRatio");
+        tempString.append("**Win %:** ").append(tempObj.getString("displayValue")).append("\n");
+        
+        tempObj = solos.getJSONObject("kills");
+        tempString.append("**Kills:** ").append(tempObj.getString("displayValue")).append("\n");
+        
+        tempObj = solos.getJSONObject("kd");
+        tempString.append("**K/D:** ").append(tempObj.getString("displayValue"));
+        return tempString.toString();
     }
 }
