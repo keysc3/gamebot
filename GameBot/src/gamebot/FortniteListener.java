@@ -94,7 +94,8 @@ public class FortniteListener extends ListenerAdapter {
                         playerJson = makeRequest("pc", epicName);
                         outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
                         outputString.append(getOverallSolos(playerJson)).append("\n\n");
-                        outputString.append(getOverallDuos(playerJson));
+                        outputString.append(getOverallDuos(playerJson)).append("\n\n");
+                        outputString.append(getOverallSquads(playerJson));
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
                         Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -165,7 +166,7 @@ public class FortniteListener extends ListenerAdapter {
     }
     
     /**
-     * getLifeTimeStats - Gets the overall solo statistics from the given playerStats JSONobject
+     * getOverallSolos - Gets the overall solo statistics from the given playerStats JSONobject
      * @param playerStats - A JSONObject of the requested players statistics
      * @return tempString - A String of the needed statistics 
      */
@@ -173,7 +174,7 @@ public class FortniteListener extends ListenerAdapter {
         //Initiate output stringbuilder and header
         StringBuilder tempString = new StringBuilder();
         tempString.append("__***Overall Solos***__\n");
-        //Get the overall solos JSONObject
+        //Get the overall solos JSONObject (denoted as p2 in playerStats JSON)
         JSONObject solos = playerStats.getJSONObject("stats").getJSONObject("p2");
         //Get the overall solos wins value
         tempString.append("**Wins:** ").append(solos.getJSONObject("top1").getString("displayValue")).append("\n");
@@ -187,7 +188,7 @@ public class FortniteListener extends ListenerAdapter {
     }
     
     /**
-     * getLifeTimeStats - Gets the overall duo statistics from the given playerStats JSONobject
+     * getOverallDuos - Gets the overall duo statistics from the given playerStats JSONobject
      * @param playerStats - A JSONObject of the requested players statistics
      * @return tempString - A String of the needed statistics 
      */
@@ -195,7 +196,7 @@ public class FortniteListener extends ListenerAdapter {
         //Initiate output stringbuilder and header
         StringBuilder tempString = new StringBuilder();
         tempString.append("__***Overall Duos***__\n");
-        //Get the overall duos JSONObject
+        //Get the overall duos JSONObject (denoted as p10 in playerStats JSON)
         JSONObject duos = playerStats.getJSONObject("stats").getJSONObject("p10");
         //Get the overall duos wins value
         tempString.append("**Wins:** ").append(duos.getJSONObject("top1").getString("displayValue")).append("\n");
@@ -205,6 +206,28 @@ public class FortniteListener extends ListenerAdapter {
         tempString.append("**Kills:** ").append(duos.getJSONObject("kills").getString("displayValue")).append("\n");
         //Get the overall duos kd value
         tempString.append("**K/D:** ").append(duos.getJSONObject("kd").getString("displayValue"));
+        return tempString.toString();
+    }
+    
+    /**
+     * getOverallSquads - Gets the overall duo statistics from the given playerStats JSONobject
+     * @param playerStats - A JSONObject of the requested players statistics
+     * @return tempString - A String of the needed statistics 
+     */
+    private String getOverallSquads(JSONObject playerStats){
+        //Initiate output stringbuilder and header
+        StringBuilder tempString = new StringBuilder();
+        tempString.append("__***Overall Squads***__\n");
+        //Get the overall squads JSONObject (denoted as p9 in playerStats JSON)
+        JSONObject squads = playerStats.getJSONObject("stats").getJSONObject("p9");
+        //Get the overall squads wins value
+        tempString.append("**Wins:** ").append(squads.getJSONObject("top1").getString("displayValue")).append("\n");
+        //Get the overall squads win% value
+        tempString.append("**Win %:** ").append(squads.getJSONObject("winRatio").getString("displayValue")).append("\n");
+        //Get the overall squads kills value
+        tempString.append("**Kills:** ").append(squads.getJSONObject("kills").getString("displayValue")).append("\n");
+        //Get the overall squads kd value
+        tempString.append("**K/D:** ").append(squads.getJSONObject("kd").getString("displayValue"));
         return tempString.toString();
     }
 }
