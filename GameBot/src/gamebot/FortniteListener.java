@@ -37,16 +37,22 @@ import org.json.JSONObject;
  * 
  * private
  * 
- * outputString             StringBuilder - used to format output
- * throttler                A RateLimiter to throttle request to the API
- * playerJson               A JSONObject to hold the currently requested players statistics
+ * MODE_MAP                 HashMap of FortniteTrackers API keys for game modes to more user friendly strings
+ * outputString             StringBuilder used to format output
+ * platformList             List of all the API platforms
+ * totalModes               List of all the API lifetime game modes
+ * currModes                List of all the API current season game modes
+ * throttler                RateLimiter to throttle request to the API
+ * playerJson               JSONObject to hold the currently requested players statistics
  * epicName                 String of the users proper epic name
- * MODE_MAP                 A HashMap of FortniteTrackers API keys for game modes to more user friendly strings
  * 
  */
 public class FortniteListener extends ListenerAdapter {
     private static final Map<String, String> MODE_MAP = createModeMap();
     private final StringBuilder outputString = new StringBuilder();
+    private final List<String> platformList = Arrays.asList("pc", "psn", "xbl");
+    private final List<String> totalModes = Arrays.asList("p2", "p10", "p9");
+    private final List<String> currModes = Arrays.asList("curr_p2", "curr_p10", "curr_p9");
     //1 request per 2 seconds
     private final RateLimiter throttle = RateLimiter.create(0.5);
     private JSONObject playerJson;
@@ -70,7 +76,8 @@ public class FortniteListener extends ListenerAdapter {
         String command = args.get(0).substring(1);
         //Remove the command from the argument list
         args.remove(0);
-        
+        //Array for the players jsons
+        ArrayList<JSONObject> jsonArray = new ArrayList<>();
         //Get number of args
         int numArgs = args.size();
         outputString.setLength(0);
@@ -83,6 +90,7 @@ public class FortniteListener extends ListenerAdapter {
                 //Send message in channel it was received
                 event.getChannel().sendMessage(outputString.toString()).queue();
                 break;
+            //Outputs a players lifetime totals and lifetime solos,duos, and squads totals
             case "fnLifetime":
                 //Must have a name to search for
                 if(numArgs < 1){
@@ -93,21 +101,33 @@ public class FortniteListener extends ListenerAdapter {
                 epicName = StringUtils.join(args, ' ');
                 {
                     try {
-                        //Create lifetime output
-                        playerJson = makeRequest("pc", epicName);
-                        if(playerJson.has("error")){
+                        //Get JSON for each platform the user has played on
+                        for(String platform : platformList){
+                            playerJson = makeRequest(platform, epicName);
+                            if(!playerJson.has("error"))
+                                jsonArray.add(playerJson);
+                        }
+                        //If the array is empty the player does not exist
+                        if(jsonArray.isEmpty()){
                             outputString.append("Invalid player name! **").append(epicName).append("** could not be found");
                             event.getChannel().sendMessage(outputString.toString()).queue();
                             break;
                         }
-                        outputString.append("__**~ ").append(playerJson.getString("epicUserHandle")).append(" ~**__\n\n");
+                        //If the player has played on more than one platform, get the json of their favourite
+                        if(jsonArray.size() > 1)
+                            playerJson = getFavePlatform(jsonArray);
+                        else
+                            playerJson = jsonArray.get(0);
+                        //Format the players header
+                        outputString.append("__**~ ").append(playerJson.getString("epicUserHandle"))
+                                .append(" (").append(playerJson.getString("platformName").toUpperCase())
+                                .append(") ~**__\n\n");
+                        //Get the players lifetime totals
                         outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
-                        //Solos output
-                        outputString.append(getGameModeStats(playerJson, "p2")).append("\n\n");
-                        //Duos output
-                        outputString.append(getGameModeStats(playerJson, "p10")).append("\n\n");
-                        //Squads output
-                        outputString.append(getGameModeStats(playerJson, "p9"));
+                        //For each game mode get and display the players stats
+                        for(String mode : totalModes)
+                            outputString.append(getGameModeStats(playerJson, mode)).append("\n\n");
+                        //Send a message in the channel it was recieved
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
                         Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -116,6 +136,7 @@ public class FortniteListener extends ListenerAdapter {
                     }
                 }
                 break;
+            //Outputs a players current season totals and current season solos,duos, and squads totals
             case "fnCurrent":
                 //Must have a name to search for
                 if(numArgs < 1){
@@ -126,21 +147,33 @@ public class FortniteListener extends ListenerAdapter {
                 epicName = StringUtils.join(args, ' ');
                 {
                     try {
-                        //Create current season total output
-                        playerJson = makeRequest("pc", epicName);
-                        if(playerJson.has("error")){
+                        //Get JSON for each platform the user has played on
+                        for(String platform : platformList){
+                            playerJson = makeRequest(platform, epicName);
+                            if(!playerJson.has("error"))
+                                jsonArray.add(playerJson);
+                        }
+                        //If the array is empty the player does not exist
+                        if(jsonArray.isEmpty()){
                             outputString.append("Invalid player name! **").append(epicName).append("** could not be found");
                             event.getChannel().sendMessage(outputString.toString()).queue();
                             break;
                         }
-                        outputString.append("__**~ ").append(playerJson.getString("epicUserHandle")).append(" ~**__\n\n");
+                        //If the player has played on more than one platform, get the json of their favourite
+                        if(jsonArray.size() > 1)
+                            playerJson = getFavePlatform(jsonArray);
+                        else
+                            playerJson = jsonArray.get(0);
+                        //Format the players header
+                        outputString.append("__**~ ").append(playerJson.getString("epicUserHandle"))
+                                .append(" (").append(playerJson.getString("platformName").toUpperCase())
+                                .append(") ~**__\n\n");
+                        //Get the players current season totals
                         outputString.append(getCurrentTotalStats(playerJson)).append("\n\n");
-                        //Solos output
-                        outputString.append(getGameModeStats(playerJson, "curr_p2")).append("\n\n");
-                        //Duos output
-                        outputString.append(getGameModeStats(playerJson, "curr_p10")).append("\n\n");
-                        //Squads output
-                        outputString.append(getGameModeStats(playerJson, "curr_p9"));
+                        //For each game mode get and display the players stats
+                        for(String mode : currModes)
+                            outputString.append(getGameModeStats(playerJson, mode)).append("\n\n");
+                        //Send a message in the channel it was recieved
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
                         Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -161,8 +194,11 @@ public class FortniteListener extends ListenerAdapter {
     private JSONObject makeRequest(String platform, String epicName) throws MalformedURLException, ProtocolException, IOException{
         //Replace spaces for proper url
         epicName = epicName.replace(" ", "%20");
-        
-        String urlString = "https://api.fortnitetracker.com/v1/profile/" + platform + "/" + epicName;
+        String urlString;
+        if(platform.equals("xbl"))
+            urlString = "https://api.fortnitetracker.com/v1/profile/xbox/" + platform + "(" + epicName + ")";
+        else
+            urlString = "https://api.fortnitetracker.com/v1/profile/" + platform + "/" + epicName;
         URL url = new URL(urlString);
         //Make sure to throttle if needed
         throttle.acquire();
@@ -294,5 +330,28 @@ public class FortniteListener extends ListenerAdapter {
         modeMap.put("curr_p10", "Current Season Duos");
         modeMap.put("curr_p9", "Current Season Squads");
         return modeMap;
+    }
+    
+    /**
+     * getFavePlatform - Finds the platform the player has the most played games on
+     * @param platformJsons - an ArrayList of JSONObjects to search through
+     * @return favePlatform - the JSONObject of the platform the user has played the most games on
+     */
+    private static JSONObject getFavePlatform(ArrayList<JSONObject> platformJsons){
+        int tempMost = 0;
+        int tempPlayed;
+        JSONObject favePlatform = platformJsons.get(0);
+        //Loop through each object
+        for(JSONObject platform : platformJsons){
+            //Get amount of matches played
+            JSONArray lifetimeArray = platform.getJSONArray("lifeTimeStats");
+            tempPlayed = Integer.parseInt(lifetimeArray.getJSONObject(7).getString("value"));
+            //If more played on latest platform, change fave platform and games played
+            if(tempPlayed > tempMost){
+                tempMost = tempPlayed;
+                favePlatform = platform;
+            }
+        }
+        return favePlatform;
     }
 }
