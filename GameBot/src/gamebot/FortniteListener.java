@@ -15,6 +15,7 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -94,6 +95,11 @@ public class FortniteListener extends ListenerAdapter {
                     try {
                         //Create lifetime output
                         playerJson = makeRequest("pc", epicName);
+                        if(playerJson.has("error")){
+                            outputString.append("Invalid player name! **").append(epicName).append("** could not be found");
+                            event.getChannel().sendMessage(outputString.toString()).queue();
+                            break;
+                        }
                         outputString.append("__**~ ").append(playerJson.getString("epicUserHandle")).append(" ~**__\n\n");
                         outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
                         //Solos output
@@ -122,6 +128,11 @@ public class FortniteListener extends ListenerAdapter {
                     try {
                         //Create current season total output
                         playerJson = makeRequest("pc", epicName);
+                        if(playerJson.has("error")){
+                            outputString.append("Invalid player name! **").append(epicName).append("** could not be found");
+                            event.getChannel().sendMessage(outputString.toString()).queue();
+                            break;
+                        }
                         outputString.append("__**~ ").append(playerJson.getString("epicUserHandle")).append(" ~**__\n\n");
                         outputString.append(getCurrentTotalStats(playerJson)).append("\n\n");
                         //Solos output
@@ -210,8 +221,12 @@ public class FortniteListener extends ListenerAdapter {
     private String getGameModeStats(JSONObject playerStats, String gameMode){
         //Initiate output stringbuilder
         StringBuilder tempString = new StringBuilder();
-        outputString.append("__***").append(MODE_MAP.get(gameMode)).append("***__\n");
+        tempString.append("__***").append(MODE_MAP.get(gameMode)).append("***__\n");
         //Get the mode requesteds JSONObject
+        if(!playerStats.getJSONObject("stats").has(gameMode)){
+            tempString.append("No stats for this playlist. Play some matches first!");
+            return tempString.toString();
+        }
         JSONObject mode = playerStats.getJSONObject("stats").getJSONObject(gameMode);
         //Get the overall gameMode games played value
         tempString.append("**Games Played:** ").append(mode.getJSONObject("matches").getString("displayValue")).append("\n");
@@ -232,38 +247,35 @@ public class FortniteListener extends ListenerAdapter {
      * @return tempString - A String of the needed statistics 
      */
     private String getCurrentTotalStats(JSONObject playerStats){
+        //Initiate counters
         int gamesPlayed = 0;
         int totalWins = 0;
         int totalKills = 0;
         double killDeath;
+        //Initiate json
+        JSONObject mode;
+        //Mode names for for each
+        List<String> modeList = Arrays.asList("curr_p2", "curr_p10", "curr_p9");
         //Initiate output stringbuilder
         StringBuilder tempString = new StringBuilder();
         tempString.append("__***Current Season Totals***__\n");
-        //Get the current solos JSONObject
-        JSONObject solos = playerStats.getJSONObject("stats").getJSONObject("curr_p2");
-        //Get the current duos JSONObject
-        JSONObject duos = playerStats.getJSONObject("stats").getJSONObject("curr_p10");
-        //Get the current squads JSONObject
-        JSONObject squads = playerStats.getJSONObject("stats").getJSONObject("curr_p9");
-        //Get total games played
-        gamesPlayed += solos.getJSONObject("matches").getInt("valueInt");
-        gamesPlayed += duos.getJSONObject("matches").getInt("valueInt");
-        gamesPlayed += squads.getJSONObject("matches").getInt("valueInt");
+        //For each to grab wanted stats from each game mode
+        for(String modeName : modeList){
+            if(playerStats.getJSONObject("stats").has(modeName)){
+                mode = playerStats.getJSONObject("stats").getJSONObject(modeName);
+                gamesPlayed += mode.getJSONObject("matches").getInt("valueInt");
+                totalWins += mode.getJSONObject("top1").getInt("valueInt");
+                totalKills += mode.getJSONObject("kills").getInt("valueInt");
+            }
+        }
+        //Format output
         tempString.append("**Games Played:** ").append(String.valueOf(gamesPlayed)).append("\n");
-        //Get total wins
-        totalWins += solos.getJSONObject("top1").getInt("valueInt");
-        totalWins += duos.getJSONObject("top1").getInt("valueInt");
-        totalWins += squads.getJSONObject("top1").getInt("valueInt");
         tempString.append("**Wins:** ").append(String.valueOf(totalWins)).append("\n");
-        //Get the overall win% from wins/games played * 100, then round to nearest whole number
+        //Format 2 nearest whole number
         tempString.append("**Win %:** ").append(String.valueOf(Math.round(((float)totalWins/(float)gamesPlayed)*100))).append("%\n");
-        //Get total kills
-        totalKills += solos.getJSONObject("kills").getInt("valueInt");
-        totalKills += duos.getJSONObject("kills").getInt("valueInt");
-        totalKills += squads.getJSONObject("kills").getInt("valueInt");
         tempString.append("**Kills:** ").append(String.valueOf(totalKills)).append("\n");
-        //Get the overall kd from kills/(games played - total wins), then round to 2 decimals.
         killDeath = ((double)totalKills)/((double)gamesPlayed-(double)totalWins);
+        //Format to 2 decimal places
         tempString.append("**K/D:** ").append(String.valueOf(Math.round(killDeath * 100)/100.0));
         return tempString.toString();
     }
