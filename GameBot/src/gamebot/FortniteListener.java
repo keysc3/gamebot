@@ -9,13 +9,13 @@ import com.google.common.util.concurrent.RateLimiter;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.HttpsURLConnection;
@@ -39,12 +39,15 @@ import org.json.JSONObject;
  * outputString             StringBuilder - used to format output
  * throttler                A RateLimiter to throttle request to the API
  * playerJson               A JSONObject to hold the currently requested players statistics
+ * epicName                 String of the users proper epic name
+ * MODE_MAP                 A HashMap of FortniteTrackers API keys for game modes to more user friendly strings
  * 
  */
 public class FortniteListener extends ListenerAdapter {
+    private static final Map<String, String> MODE_MAP = createModeMap();
     private final StringBuilder outputString = new StringBuilder();
     //1 request per 2 seconds
-    private RateLimiter throttle = RateLimiter.create(0.5);
+    private final RateLimiter throttle = RateLimiter.create(0.5);
     private JSONObject playerJson;
     private String epicName;
     
@@ -90,17 +93,14 @@ public class FortniteListener extends ListenerAdapter {
                 {
                     try {
                         //Create lifetime output
-                        outputString.append("__**~ ").append(epicName).append(" ~**__\n\n");
                         playerJson = makeRequest("pc", epicName);
+                        outputString.append("__**~ ").append(playerJson.getString("epicUserHandle")).append(" ~**__\n\n");
                         outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
                         //Solos output
-                        outputString.append("__***Overall Solos***__\n");
                         outputString.append(getGameModeStats(playerJson, "p2")).append("\n\n");
                         //Duos output
-                        outputString.append("__***Overall Duos***__\n");
                         outputString.append(getGameModeStats(playerJson, "p10")).append("\n\n");
                         //Squads output
-                        outputString.append("__***Overall Squads***__\n");
                         outputString.append(getGameModeStats(playerJson, "p9"));
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
@@ -121,17 +121,14 @@ public class FortniteListener extends ListenerAdapter {
                 {
                     try {
                         //Create current season total output
-                        outputString.append("__**~ ").append(epicName).append(" ~**__\n\n");
                         playerJson = makeRequest("pc", epicName);
+                        outputString.append("__**~ ").append(playerJson.getString("epicUserHandle")).append(" ~**__\n\n");
                         outputString.append(getCurrentTotalStats(playerJson)).append("\n\n");
                         //Solos output
-                        outputString.append("__***Current Season Solos***__\n");
                         outputString.append(getGameModeStats(playerJson, "curr_p2")).append("\n\n");
                         //Duos output
-                        outputString.append("__***Current Season Duos***__\n");
                         outputString.append(getGameModeStats(playerJson, "curr_p10")).append("\n\n");
                         //Squads output
-                        outputString.append("__***Current Season Squads***__\n");
                         outputString.append(getGameModeStats(playerJson, "curr_p9"));
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
@@ -213,6 +210,7 @@ public class FortniteListener extends ListenerAdapter {
     private String getGameModeStats(JSONObject playerStats, String gameMode){
         //Initiate output stringbuilder
         StringBuilder tempString = new StringBuilder();
+        outputString.append("__***").append(MODE_MAP.get(gameMode)).append("***__\n");
         //Get the mode requesteds JSONObject
         JSONObject mode = playerStats.getJSONObject("stats").getJSONObject(gameMode);
         //Get the overall gameMode games played value
@@ -268,5 +266,21 @@ public class FortniteListener extends ListenerAdapter {
         killDeath = ((double)totalKills)/((double)gamesPlayed-(double)totalWins);
         tempString.append("**K/D:** ").append(String.valueOf(Math.round(killDeath * 100)/100.0));
         return tempString.toString();
+    }
+    
+    /**
+     * createRegionMap - Creates an HashMap with keys being the Fortnite tracker
+     * API game mode keys and values being user friendly mode names.
+     * @return regionMap - HashMap of API game modes to user friendly game mode names
+     */
+    private static Map<String, String> createModeMap(){
+        Map<String, String> modeMap = new HashMap<>();
+        modeMap.put("p2", "Overall Solos");
+        modeMap.put("p10", "Overall Duos");
+        modeMap.put("p9", "Overall Squads");
+        modeMap.put("curr_p2", "Current Season Solos");
+        modeMap.put("curr_p10", "Current Season Duos");
+        modeMap.put("curr_p9", "Current Season Squads");
+        return modeMap;
     }
 }
