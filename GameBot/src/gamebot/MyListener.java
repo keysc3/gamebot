@@ -33,14 +33,9 @@ public class MyListener extends ListenerAdapter {
         String command = args.get(0).substring(1);
         //Remove the command from the argument list
         args.remove(0);
-        
-        System.out.println(command);
-        System.out.println(args);
         //Geth the amount of arguments given
         int numArgs = args.size();
-        
         StringBuilder outputString = new StringBuilder();
-        
         //Switch used to process the command given
         switch(command){
             //Outputs all the basic commands and help commands for other listeners
@@ -50,11 +45,12 @@ public class MyListener extends ListenerAdapter {
                 outputString.append("**!ping:** responds with pong!\n");
                 outputString.append("**!buddy:** responds with guy!\n");
                 outputString.append("**!roll [number]:** Randomly gets a value "
-                        + "up to the selected ***number*** (default is 100)\n");
+                        + "up to the selected ***number*** (Max 9 digits | default is 100)\n");
                 outputString.append("**!gimme <noun>:** Inputs ***item*** and "
                         + "***noun*** into a static sentence\n");
                 outputString.append("**!reverse <sentence>:** Responds with the given ***sentence*** reversed\n");
                 outputString.append("**!lolHelp:** Outputs info about the available League of Legends commands\n");
+                outputString.append("**!fnHelp:** Outputs info about the available Fortnite commands\n");
                 event.getChannel().sendMessage(outputString.toString()).queue();
                 break;
             //Outputs pong!
@@ -75,7 +71,10 @@ public class MyListener extends ListenerAdapter {
                 //if a value is given change max value to that
                 if(numArgs >= 1){
                     String maxRange = args.get(0);
-                    if(StringUtils.isNumericSpace(maxRange))
+                    //Incase they type a negative number
+                    maxRange.replace("-", "");
+                    //Have a max number
+                    if(StringUtils.isNumericSpace(maxRange) && maxRange.length() < 10)
                         max = Integer.parseInt(maxRange);
                 }
                 //Pick random number between 1 (inclusive) and max (exclusive)
