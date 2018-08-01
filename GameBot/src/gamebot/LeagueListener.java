@@ -99,6 +99,9 @@ public class LeagueListener extends ListenerAdapter{
                         + "given ***summoner_name***'s rank in each queue they are ranked in on the NA server\n");
                 outputString.append("**!lolRanksRegion <region> <summoner_name>:** "
                         + "Outputs given ***summoner_name***'s rank in each queue they are ranked in on the given ***region***\n");
+                outputString.append("**!lolLive <summoner_name>:** Outputs info about given ***summoner_name***'s live game\n");
+                outputString.append("**!lolLiveRegion <region> <summoner_name>:** Outputs info about given ***summoner_name***'s live "
+                        + "game on the given ***region***\n");
                 //Send message in channel it was received
                 event.getChannel().sendMessage(outputString.toString()).queue();
                 break;
@@ -150,8 +153,8 @@ public class LeagueListener extends ListenerAdapter{
                 //Process the summoner
                 summonerRanks(args, regionGiven, event);
                 break;
-            //Outputs info about the current game the given summoner is in
-            case "lolCurrentGame":
+            //Outputs info about the current game the given summoner is in on NA
+            case "lolLive":
                 //Must have a summoner to search for
                 if(numArgs < 1){
                    event.getChannel().sendMessage("**Usage: !lolCurrentGame <Summoner_Name>**\n").queue();
@@ -160,7 +163,8 @@ public class LeagueListener extends ListenerAdapter{
                 //Process the summoner
                 summonerCurrentGame(args, "NA", event);
                 break;
-            case "lolCurrentGameRegion":
+            //Outputs info about the current game the given summoner is in on given region
+            case "lolLiveRegion":
                 /*Must have a region to search on and a summoner to search for.
                 The region given must be a key in the abbreviation hashmap*/
                 if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
@@ -423,6 +427,12 @@ public class LeagueListener extends ListenerAdapter{
                     .append("/").append(String.valueOf(queueLosses))
                     .append(" ").append(String.valueOf(queuePercent))
                     .append("%)\n");
+            if(leaguePosition.getPromos() != null) {
+                // If the summoner is in their promos show progress
+                outputString.append("| Promos progress: ")
+                        .append(leaguePosition.getPromos().getProgess().replace('N', '-'))
+                        .append(" |\n");
+            }
         }
         //Send message in channel it was received in
         event.getChannel().sendMessage(outputString.toString()).queue();
@@ -509,8 +519,8 @@ public class LeagueListener extends ListenerAdapter{
         
         //Get the positions summoner is in for the leagues they are ranked in
         final CurrentMatch currentGame = summoner.getCurrentMatch();
-        //summoner.isInGame does not work, using try and catch to check if they are in game
-        try{
+        //Make sure they are in a game
+        if(currentGame.exists()){
             //Get game type and duration
             String queueName = QUEUE_MAP.get(currentGame.getQueue().toString());
             final Player player = currentGame.getParticipants().find(summoner);
@@ -544,7 +554,7 @@ public class LeagueListener extends ListenerAdapter{
             //Send message in channel it was received in
             event.getChannel().sendMessage(outputString.toString()).queue();
         }
-        catch(NullPointerException e){
+        else{
             outputString.setLength(0);
             outputString.append("**").append(summonerName).append("** is not in game on the **")
                     .append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("** server");
