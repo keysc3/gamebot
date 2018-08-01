@@ -95,13 +95,13 @@ public class FortniteListener extends ListenerAdapter {
                         outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
                         //Solos output
                         outputString.append("__***Overall Solos***__\n");
-                        outputString.append(getOverallStats(playerJson, "p2")).append("\n\n");
+                        outputString.append(getGameModeStats(playerJson, "p2")).append("\n\n");
                         //Duos output
                         outputString.append("__***Overall Duos***__\n");
-                        outputString.append(getOverallStats(playerJson, "p10")).append("\n\n");
+                        outputString.append(getGameModeStats(playerJson, "p10")).append("\n\n");
                         //Squads output
                         outputString.append("__***Overall Squads***__\n");
-                        outputString.append(getOverallStats(playerJson, "p9"));
+                        outputString.append(getGameModeStats(playerJson, "p9"));
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
                         Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -120,18 +120,19 @@ public class FortniteListener extends ListenerAdapter {
                 epicName = StringUtils.join(args, ' ');
                 {
                     try {
-                        //Create lifetime output
+                        //Create current season total output
                         outputString.append("__**~ ").append(epicName).append(" ~**__\n\n");
                         playerJson = makeRequest("pc", epicName);
+                        outputString.append(getCurrentTotalStats(playerJson)).append("\n\n");
                         //Solos output
-                        outputString.append("__***Current Solos***__\n");
-                        outputString.append(getOverallStats(playerJson, "curr_p2")).append("\n\n");
+                        outputString.append("__***Current Season Solos***__\n");
+                        outputString.append(getGameModeStats(playerJson, "curr_p2")).append("\n\n");
                         //Duos output
-                        outputString.append("__***Current Duos***__\n");
-                        outputString.append(getOverallStats(playerJson, "curr_p10")).append("\n\n");
+                        outputString.append("__***Current Season Duos***__\n");
+                        outputString.append(getGameModeStats(playerJson, "curr_p10")).append("\n\n");
                         //Squads output
-                        outputString.append("__***Current Squads***__\n");
-                        outputString.append(getOverallStats(playerJson, "curr_p9"));
+                        outputString.append("__***Current Season Squads***__\n");
+                        outputString.append(getGameModeStats(playerJson, "curr_p9"));
                         event.getChannel().sendMessage(outputString.toString()).queue();
                     } catch (ProtocolException ex) {
                         Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -204,26 +205,68 @@ public class FortniteListener extends ListenerAdapter {
     }
     
     /**
-     * getOverallStats - Gets the overall solo statistics from the given playerStats JSONobject
+     * getGameModeStats - Gets the statistics for the given gameMode&season from the given playerStats JSONobject
      * @param playerStats - A JSONObject of the requested players statistics
      * @param gameMode - A string of the game mode to get statistics for
      * @return tempString - A String of the needed statistics 
      */
-    private String getOverallStats(JSONObject playerStats, String gameMode){
+    private String getGameModeStats(JSONObject playerStats, String gameMode){
         //Initiate output stringbuilder
         StringBuilder tempString = new StringBuilder();
-        //Get the overall solos JSONObject (denoted as p2 in playerStats JSON)
-        JSONObject solos = playerStats.getJSONObject("stats").getJSONObject(gameMode);
+        //Get the mode requesteds JSONObject
+        JSONObject mode = playerStats.getJSONObject("stats").getJSONObject(gameMode);
         //Get the overall gameMode games played value
-        tempString.append("**Games Played:** ").append(solos.getJSONObject("matches").getString("displayValue")).append("\n");
+        tempString.append("**Games Played:** ").append(mode.getJSONObject("matches").getString("displayValue")).append("\n");
         //Get the overall gameMode wins value
-        tempString.append("**Wins:** ").append(solos.getJSONObject("top1").getString("displayValue")).append("\n");
+        tempString.append("**Wins:** ").append(mode.getJSONObject("top1").getString("displayValue")).append("\n");
         //Get the overall gameMode win% value
-        tempString.append("**Win %:** ").append(solos.getJSONObject("winRatio").getString("displayValue")).append("\n");
+        tempString.append("**Win %:** ").append(mode.getJSONObject("winRatio").getString("displayValue")).append("%\n");
         //Get the overall gameMode kills value
-        tempString.append("**Kills:** ").append(solos.getJSONObject("kills").getString("displayValue")).append("\n");
+        tempString.append("**Kills:** ").append(mode.getJSONObject("kills").getString("displayValue")).append("\n");
         //Get the overall gameMode kd value
-        tempString.append("**K/D:** ").append(solos.getJSONObject("kd").getString("displayValue"));
+        tempString.append("**K/D:** ").append(mode.getJSONObject("kd").getString("displayValue"));
+        return tempString.toString();
+    }
+    
+        /**
+     * getCurrentTotalStats - Gets the total statistics for the current season from the given playerStats JSONobject
+     * @param playerStats - A JSONObject of the requested players statistics
+     * @return tempString - A String of the needed statistics 
+     */
+    private String getCurrentTotalStats(JSONObject playerStats){
+        int gamesPlayed = 0;
+        int totalWins = 0;
+        int totalKills = 0;
+        double killDeath;
+        //Initiate output stringbuilder
+        StringBuilder tempString = new StringBuilder();
+        tempString.append("__***Current Season Totals***__\n");
+        //Get the current solos JSONObject
+        JSONObject solos = playerStats.getJSONObject("stats").getJSONObject("curr_p2");
+        //Get the current duos JSONObject
+        JSONObject duos = playerStats.getJSONObject("stats").getJSONObject("curr_p10");
+        //Get the current squads JSONObject
+        JSONObject squads = playerStats.getJSONObject("stats").getJSONObject("curr_p9");
+        //Get total games played
+        gamesPlayed += solos.getJSONObject("matches").getInt("valueInt");
+        gamesPlayed += duos.getJSONObject("matches").getInt("valueInt");
+        gamesPlayed += squads.getJSONObject("matches").getInt("valueInt");
+        tempString.append("**Games Played:** ").append(String.valueOf(gamesPlayed)).append("\n");
+        //Get total wins
+        totalWins += solos.getJSONObject("top1").getInt("valueInt");
+        totalWins += duos.getJSONObject("top1").getInt("valueInt");
+        totalWins += squads.getJSONObject("top1").getInt("valueInt");
+        tempString.append("**Wins:** ").append(String.valueOf(totalWins)).append("\n");
+        //Get the overall win% from wins/games played * 100, then round to nearest whole number
+        tempString.append("**Win %:** ").append(String.valueOf(Math.round(((float)totalWins/(float)gamesPlayed)*100))).append("%\n");
+        //Get total kills
+        totalKills += solos.getJSONObject("kills").getInt("valueInt");
+        totalKills += duos.getJSONObject("kills").getInt("valueInt");
+        totalKills += squads.getJSONObject("kills").getInt("valueInt");
+        tempString.append("**Kills:** ").append(String.valueOf(totalKills)).append("\n");
+        //Get the overall kd from kills/(games played - total wins), then round to 2 decimals.
+        killDeath = ((double)totalKills)/((double)gamesPlayed-(double)totalWins);
+        tempString.append("**K/D:** ").append(String.valueOf(Math.round(killDeath * 100)/100.0));
         return tempString.toString();
     }
 }
