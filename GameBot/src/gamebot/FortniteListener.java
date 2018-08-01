@@ -87,6 +87,10 @@ public class FortniteListener extends ListenerAdapter {
             case "fnHelp":
                 outputString.setLength(0);
                 outputString.append("__**Fortnite Commands**__\n");
+                outputString.append("**!fnLifetime <epicgames_name>:** Outputs stats for lifetime"
+                        + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
+                outputString.append("**!fnCurrent <epicgames_name>:** Outputs stats for the current seasons"
+                        + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
                 //Send message in channel it was received
                 event.getChannel().sendMessage(outputString.toString()).queue();
                 break;
