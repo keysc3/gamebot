@@ -9,6 +9,7 @@ import com.merakianalytics.orianna.types.core.championmastery.ChampionMastery;
 import com.merakianalytics.orianna.types.core.league.LeaguePosition;
 import com.merakianalytics.orianna.types.core.league.LeaguePositions;
 import com.merakianalytics.orianna.types.core.spectator.CurrentMatch;
+import com.merakianalytics.orianna.types.core.spectator.CurrentMatchTeam;
 import com.merakianalytics.orianna.types.core.spectator.Player;
 import com.merakianalytics.orianna.types.core.summoner.Summoner;
 import java.io.File;
@@ -16,6 +17,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -543,8 +545,8 @@ public class LeagueListener extends ListenerAdapter{
             //Combine minutes and seconds for game duration
             String gameDuration = String.valueOf((int)interval.toDuration().getStandardSeconds()/60)
                     + ":" + seconds;
-            tempString.append("**").append(properName).append("** is in a **")
-                    .append(queueName).append("** game!\n")
+            tempString.append("__**").append(properName).append("**__ is in a __**")
+                    .append(queueName).append("**__ game!\n")
                     .append("**Server:** ").append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("\n")
                     .append("**Champion: **").append(player.getChampion().getName()).append("\n")
                     .append("**Spells: **").append(player.getSummonerSpellD().getName()).append("/").append(player.getSummonerSpellF().getName()).append("\n")
@@ -564,57 +566,36 @@ public class LeagueListener extends ListenerAdapter{
                 });
             }*/
             if(QUEUE_MAP.get(currentGame.getQueue().toString()).equals("Solo/Duo 5v5")){
-                tempString.append("Name|Champ|S8 Rank|Ranked WR|S7 Rank|\n\n");
-                tempString.append("__**Blue Team**__\n");
-                currentGame.getBlueTeam().getParticipants().forEach((bluePlayer) -> {
-                    //Get Summoner and league position
-                    Summoner playerProf = bluePlayer.getSummoner();
-                    LeaguePosition position = playerProf.getLeaguePosition(Queue.RANKED_SOLO_5x5);
-                    //Get Summoner name
-                    tempString.append(playerProf.getName()).append(" | ");
-                    //Get Champion name
-                    tempString.append(bluePlayer.getChampion().getName()).append(" | ");
-                    //Get D and F SummonerSpell
-                    //tempString.append(bluePlayer.getSummonerSpellD().getName()).append(":").append(bluePlayer.getSummonerSpellF().getName()).append(" | ");
-                    //Get first letter of the players Solo/Duo 5v5 Tier
-                    tempString.append(position.getTier().toString().substring(0,1));
-                    //Get the integer value of the players Solo/Duo 5v5 Division
-                    tempString.append(DIVISION_MAP.get(position.getDivision().toString()));
-                    //Get the amount of LP the player has in the Solo/Duo 5v5 Queue
-                    tempString.append("(").append(position.getLeaguePoints()).append("LP) | ");
-                    //Get win percent and games played
-                    int wins = position.getWins();
-                    int losses = position.getLosses();
-                    double winPercent = (double)wins/((double)wins+(double)losses);
-                    tempString.append(Math.round(winPercent * 100)).append("%(").append(wins+losses).append("GP) | ");
-                    //Get players highest tier last season
-                    tempString.append(playerProf.getHighestTier(Season.SEASON_8).toString().substring(0,1)).append("\n");
-                });
-                tempString.append("\n__**Red Team**__\n");
-                currentGame.getRedTeam().getParticipants().forEach((redPlayer) -> {
-                    //Get Summoner and league position
-                    Summoner playerProf = redPlayer.getSummoner();
-                    LeaguePosition position = playerProf.getLeaguePosition(Queue.RANKED_SOLO_5x5);
-                    //Get Summoner name
-                    tempString.append(playerProf.getName()).append(" | ");
-                    //Get Champion name
-                    tempString.append(redPlayer.getChampion().getName()).append(" | ");
-                    //Get D and F SummonerSpell
-                    //tempString.append(redPlayer.getSummonerSpellD().getName()).append("/").append(redPlayer.getSummonerSpellF().getName()).append(" | ");
-                    //Get first letter of the players Solo/Duo 5v5 Tier
-                    tempString.append(position.getTier().toString().substring(0,1));
-                    //Get the integer value of the players Solo/Duo 5v5 Division
-                    tempString.append(DIVISION_MAP.get(position.getDivision().toString()));
-                    //Get the amount of LP the player has in the Solo/Duo 5v5 Queue
-                    tempString.append("(").append(position.getLeaguePoints()).append("LP) | ");
-                    //Get win percent and games played
-                    int wins = position.getWins();
-                    int losses = position.getLosses();
-                    double winPercent = (double)wins/((double)wins+(double)losses);
-                    tempString.append(Math.round(winPercent * 100)).append("%(").append(wins+losses).append("GP) | ");
-                    //Get players highest tier last season
-                    tempString.append(playerProf.getHighestTier(Season.SEASON_8).toString().substring(0,1)).append("\n");
-                });
+                List<CurrentMatchTeam> teams = Arrays.asList(currentGame.getBlueTeam(), currentGame.getRedTeam());
+                tempString.append("Name | Champ | S8 Rank | Ranked WR | S7 Rank |\n\n");
+                for(CurrentMatchTeam team : teams){
+                    tempString.append("__**").append(TEAM_MAP.get(team.getSide().name())).append(" Team**__\n");
+                    team.getParticipants().forEach((teamPlayer) -> {
+                        //Get Summoner and league position
+                        Summoner playerProf = teamPlayer.getSummoner();
+                        LeaguePosition position = playerProf.getLeaguePosition(Queue.RANKED_SOLO_5x5);
+                        //Get Summoner name
+                        tempString.append(playerProf.getName()).append(" | ");
+                        //Get Champion name
+                        tempString.append(teamPlayer.getChampion().getName()).append(" | ");
+                        //Get D and F SummonerSpell
+                        //tempString.append(bluePlayer.getSummonerSpellD().getName()).append(":").append(bluePlayer.getSummonerSpellF().getName()).append(" | ");
+                        //Get first letter of the players Solo/Duo 5v5 Tier
+                        tempString.append(position.getTier().toString().substring(0,1));
+                        //Get the integer value of the players Solo/Duo 5v5 Division
+                        tempString.append(DIVISION_MAP.get(position.getDivision().toString()));
+                        //Get the amount of LP the player has in the Solo/Duo 5v5 Queue
+                        tempString.append("(").append(position.getLeaguePoints()).append("LP) | ");
+                        //Get win percent and games played
+                        int wins = position.getWins();
+                        int losses = position.getLosses();
+                        double winPercent = (double)wins/((double)wins+(double)losses);
+                        tempString.append(Math.round(winPercent * 100)).append("%(").append(wins+losses).append("GP) | ");
+                        //Get players highest tier last season
+                        tempString.append(playerProf.getHighestTier(Season.SEASON_8).toString().substring(0,1)).append("\n");
+                    });
+                    tempString.append("\n");
+                }
             }
         }
         //Summoner is not in game
