@@ -1,7 +1,9 @@
 package gamebot;
 
 import com.merakianalytics.orianna.Orianna;
+import com.merakianalytics.orianna.types.common.Queue;
 import com.merakianalytics.orianna.types.common.Region;
+import com.merakianalytics.orianna.types.common.Season;
 import com.merakianalytics.orianna.types.core.championmastery.ChampionMasteries;
 import com.merakianalytics.orianna.types.core.championmastery.ChampionMastery;
 import com.merakianalytics.orianna.types.core.league.LeaguePosition;
@@ -40,15 +42,10 @@ import org.joda.time.Interval;
  * QUEUE_MAP                HashMap - keys are the API format of queues, values are the readable format of queues
  * TIER_MAP                 HashMap - keys are the API format of tiers, values are the readable format of tiers
  * TEAM_MAP                 HashMap - keys are the API format of teams, values are the readable format of teams
+ * DIVISION_MAP             ashMap - keys are the API format of divisions, values are the integer format of divisions
  * 
  * private
  * 
- * queueWins                integer - wins in the given queue
- * queueLosses              integer - losses in the given queue
- * queuePercent             integer - Win/Loss percent in the given queue
- * summonerName             String - name of the given summoner
- * summoner                 Summoner - summoner object of given summonerName
- * outputString             StringBuilder - used to format output
  * dbOps                    DataboseOps object for database operations
  * 
  */
@@ -59,14 +56,8 @@ public class LeagueListener extends ListenerAdapter{
     private static final Map<String, String> QUEUE_MAP = createQueueMap();
     private static final Map<String, String> TIER_MAP = createTierMap();
     private static final Map<String, String> TEAM_MAP = createTeamMap();
+    private static final Map<String, String> DIVISION_MAP = createDivisionMap();
     private final DatabaseOps dbOps = new DatabaseOps();
-    private int queueWins;
-    private int queueLosses;
-    private int queuePercent;
-
-    private String summonerName;
-    private Summoner summoner;
-    private final StringBuilder outputString = new StringBuilder();
     
     /**
      * onMessageReceived - Handles the Listeners actions when a message is received
@@ -92,7 +83,8 @@ public class LeagueListener extends ListenerAdapter{
             int numArgs = args.size();
             //Region abbreviation given
             String regionGiven;
-            
+            //For output formatting
+            StringBuilder outputString = new StringBuilder();
             //Switch used to process the command given
             switch(command){
                 //Outputs all the League of Legends related commands
@@ -122,7 +114,7 @@ public class LeagueListener extends ListenerAdapter{
                         break;
                     }
                     //Process the summoner
-                    summoner(args, "NA", event);
+                    event.getChannel().sendMessage(summoner(args, "NA")).queue();
                     //Add use to db
                     dbOps.dbUpdate(event, "lol");
                     break;
@@ -138,7 +130,7 @@ public class LeagueListener extends ListenerAdapter{
                     regionGiven = args.get(0);
                     args.remove(0);
                     //Process the summoner
-                    summoner(args, regionGiven, event);
+                    event.getChannel().sendMessage(summoner(args, regionGiven)).queue();
                     //Add use to db
                     dbOps.dbUpdate(event, "lolRegion");
                     break;
@@ -150,7 +142,7 @@ public class LeagueListener extends ListenerAdapter{
                         break;
                     }
                     //Process the summoner
-                    summonerRanks(args, "NA", event);
+                    event.getChannel().sendMessage(summonerRanks(args, "NA")).queue();
                     //Add use to db
                     dbOps.dbUpdate(event, "lolRanks");
                     break;
@@ -166,7 +158,7 @@ public class LeagueListener extends ListenerAdapter{
                     regionGiven = args.get(0);
                     args.remove(0);
                     //Process the summoner
-                    summonerRanks(args, regionGiven, event);
+                    event.getChannel().sendMessage(summonerRanks(args, regionGiven)).queue();
                     //Add use to db
                     dbOps.dbUpdate(event, "lolRanksRegion");
                     break;
@@ -178,7 +170,7 @@ public class LeagueListener extends ListenerAdapter{
                         break;
                     }
                     //Process the summoner
-                    summonerCurrentGame(args, "NA", event);
+                    event.getChannel().sendMessage(summonerLiveGame(args, "NA")).queue();
                     //Add use to db
                     dbOps.dbUpdate(event, "lolLive");
                     break;
@@ -194,53 +186,10 @@ public class LeagueListener extends ListenerAdapter{
                     regionGiven = args.get(0);
                     args.remove(0);
                     //Process the summoner
-                    summonerCurrentGame(args, regionGiven, event);
+                    event.getChannel().sendMessage(summonerLiveGame(args, regionGiven)).queue();
                     //Add use to db
                     dbOps.dbUpdate(event, "lolLiveRegion");
                     break;
-                    
-                    /*
-                    case "summonerQueueRank":
-                    //Must have a summoner to search for
-                    if(numArgs < 1){
-                    event.getChannel().sendMessage("**Usage: !summonerRanks <Summoner_Name>**").queue();
-                    break;
-                    }
-                    //Set up output string, Orianna, and summoner name
-                    setUpOrianna();
-                    outputString.setLength(0);
-                    //Build proper name
-                    summonerName = getSummonerName(args);
-                    //Get the summoner
-                    summoner = getSummoner(summonerName);
-                    //Get position summoner is in for the leagues they are ranked in
-                    final LeaguePosition position1 = summoner.getLeaguePosition(Queue.RANKED_SOLO_5x5);
-                    //Make sure the summoner is ranked
-                    if(position1 != null){
-                    //Get the summoners league name, tier, division, and LP
-                    int rankedFiveWins = position1.getWins();
-                    int rankedFiveLosses = position1.getLosses();
-                    int rankedFivesPercent = (rankedFiveWins * 100)/(rankedFiveWins+rankedFiveLosses);
-
-                    outputString.append("**Solo/Duo League:** ").append(position1.getName()).append("\n");
-                    outputString.append("**Tier:** ").append(tierMap.get(position1.getTier().toString())).append("\n");
-                    outputString.append("**Division:** ").append(position1.getDivision().toString()).append("\n");
-                    outputString.append("**LP:** ").append(String.valueOf(position1.getLeaguePoints())).append("\n");
-                    outputString.append("**Win/Loss:** ").append(String.valueOf(rankedFiveWins))
-                    .append("/").append(String.valueOf(rankedFiveLosses))
-                    .append(" (").append(String.valueOf(rankedFivesPercent))
-                    .append("%)\n");
-                    if(position1.getPromos() != null) {
-                    // If the summoner is in their promos show progress
-                    outputString.append("**Promos progress: **")
-                    .append(position1.getPromos().getProgess().replace('N', '-'))
-                    .append("\n");
-                    }
-                    }
-                    //Summoner is not ranked
-                    else{
-                    outputString.append("**Solo/Duo League:** Summoner is not ranked in the Solo/Duo 5v5 queue\n");
-                    }*/
             }
         } catch (SQLException | IllegalAccessException ex) {
             Logger.getLogger(LeagueListener.class.getName()).log(Level.SEVERE, null, ex);
@@ -359,7 +308,7 @@ public class LeagueListener extends ListenerAdapter{
     /**
      * createTierMap - Creates an HashMap with keys being the Orianna Tier
      * ENUM's and values being a more user friendly format of the ENUM
-     * @return tierMap - HashMap of ENUM Queue names to user friendly tier names
+     * @return tierMap - HashMap of ENUM Tier names to user friendly tier names
      */
     private static Map<String, String> createTierMap(){
         Map<String, String> tierMap = new HashMap<>();
@@ -371,6 +320,21 @@ public class LeagueListener extends ListenerAdapter{
         tierMap.put("MASTER", "Master");
         tierMap.put("CHALLENGER", "Challenger");
         return tierMap;
+    }
+    
+    /**
+     * createDivisionMap - Creates an HashMap with keys being the Orianna Division
+     * ENUM's and values being a more user friendly format of the ENUM
+     * @return divisionMap - HashMap of ENUM Division names to user friendly tier names
+     */
+    private static Map<String, String> createDivisionMap(){
+        Map<String, String> divisionMap = new HashMap<>();
+        divisionMap.put("I", "1");
+        divisionMap.put("II", "2");
+        divisionMap.put("III", "3");
+        divisionMap.put("IV", "4");
+        divisionMap.put("V", "5");
+        return divisionMap;
     }
     
     /**
@@ -405,16 +369,16 @@ public class LeagueListener extends ListenerAdapter{
      * ranked in on the NA server by default, otherwise the given server.
      * @param args - ArrayList of the given summoner name split on spaces
      * @param region - String of the given abbreviated region to search on
-     * @param event - MessageReceivedEvent instance generated when the bot
-     * a message the bot can read it received.
+     * @return String - String of the formatted output
      */
-    private void summonerRanks(ArrayList args, String region, MessageReceivedEvent event){
+    private String summonerRanks(ArrayList args, String region){
         //Reset output string, set up Orianna, and summoner name
         setUpOrianna();
-        outputString.setLength(0);
+        StringBuilder tempString = new StringBuilder();
         //Build proper name
-        summonerName = getSummonerName(args);
+        String summonerName = getSummonerName(args);
         //Get the summoner, NA if no region is given
+        Summoner summoner;
         if(region.equals("NA"))
             summoner = getSummoner(summonerName);
         else{
@@ -423,43 +387,42 @@ public class LeagueListener extends ListenerAdapter{
         
         //Make sure summoner exists
         if(!checkSummonerExists(summoner)){
-            summonerDoesNotExist(summonerName, event, REGIONABB_MAP.get(region));
-            return;
+            return summonerDoesNotExist(summonerName, REGIONABB_MAP.get(region));
         }
-        
+        //Get proper profile name
+        String properName = summoner.getName();
         //Get the positions summoner is in for the leagues they are ranked in
         final LeaguePositions positions = summoner.getLeaguePositions();
         //If they are not ranked in any leagues output results and return
         if(positions.isEmpty()){
-            outputString.append("**").append(summonerName).append("** is not ranked in any leagues!");
-            event.getChannel().sendMessage(outputString.toString()).queue();
-            return;
+            tempString.append("**").append(properName).append("** is not ranked in any leagues!");
+            return tempString.toString();
         }
         
-        outputString.append("__**Leagues ").append(summonerName).append(" is ranked in:**__\n");
+        tempString.append("__**Leagues ").append(properName).append(" is ranked in:**__\n");
         //Go through each league and get the desired data from each one
         for(final LeaguePosition leaguePosition : positions) {
             //Queue name, tier name, division number, LP amount, W/L, and W/L ratio
-            outputString.append("**").append(QUEUE_MAP.get(leaguePosition.getQueue().toString())).append(":** ");
-            outputString.append(TIER_MAP.get(leaguePosition.getTier().toString())).append(" ");
-            outputString.append(leaguePosition.getDivision().toString()).append(" ");
-            outputString.append(String.valueOf(leaguePosition.getLeaguePoints())).append("LP ");
-            queueWins = leaguePosition.getWins();
-            queueLosses = leaguePosition.getLosses();
-            queuePercent = (queueWins * 100)/(queueWins+queueLosses);
-            outputString.append("(W/L: ").append(String.valueOf(queueWins))
-                    .append("/").append(String.valueOf(queueLosses))
-                    .append(" ").append(String.valueOf(queuePercent))
+            tempString.append("**").append(QUEUE_MAP.get(leaguePosition.getQueue().toString())).append(":** ");
+            tempString.append(TIER_MAP.get(leaguePosition.getTier().toString())).append(" ");
+            tempString.append(leaguePosition.getDivision().toString()).append(" ");
+            tempString.append(String.valueOf(leaguePosition.getLeaguePoints())).append("LP ");
+            int wins = leaguePosition.getWins();
+            int losses = leaguePosition.getLosses();
+            double winPercent = (double)wins/((double)wins+(double)losses);
+            tempString.append("(W/L: ").append(wins)
+                    .append("/").append(losses)
+                    .append(" ").append(Math.round(winPercent * 100))
                     .append("%)\n");
             if(leaguePosition.getPromos() != null) {
                 // If the summoner is in their promos show progress
-                outputString.append("| Promos progress: ")
+                tempString.append("| Promos progress: ")
                         .append(leaguePosition.getPromos().getProgess().replace('N', '-'))
                         .append(" |\n");
             }
         }
         //Send message in channel it was received in
-        event.getChannel().sendMessage(outputString.toString()).queue();
+        return tempString.toString();
     }
     
     /**
@@ -467,16 +430,16 @@ public class LeagueListener extends ListenerAdapter{
      * by default, otherwise the given server.
      * @param args - ArrayList of the given summoner name split on spaces
      * @param region - String of the given abbreviated region to search on
-     * @param event - MessageReceivedEvent instance generated when the bot
-     * a message the bot can read it received.
+     * @return String - String of the formatted output
      */
-    private void summoner(ArrayList args, String region, MessageReceivedEvent event){
+    private String summoner(ArrayList args, String region){
         //Reset output string, set up Orianna, and summoner name
         setUpOrianna();
-        outputString.setLength(0);
+        StringBuilder tempString = new StringBuilder();
         //Build proper name
-        summonerName = getSummonerName(args);
+        String summonerName = getSummonerName(args);
         //Get the summoner, NA if no region is given
+        Summoner summoner;
         if(region.equals("NA"))
             summoner = getSummoner(summonerName);
         else{
@@ -485,16 +448,15 @@ public class LeagueListener extends ListenerAdapter{
 
         //Make sure summoner exists
         if(!checkSummonerExists(summoner)){
-            summonerDoesNotExist(summonerName, event, REGIONABB_MAP.get(region));
-            return;
+            return summonerDoesNotExist(summonerName, REGIONABB_MAP.get(region));
         }
 
         //Build summoner level and region output
-        outputString.append("__**").append(summoner.getName()).append("**__").append("\n");
-        outputString.append("**Level:** ").append(summoner.getLevel()).append("\n");
-        outputString.append("**Region:** ").append(REGION_MAP.get(summoner.getRegion().toString())).append("\n");
+        tempString.append("__**").append(summoner.getName()).append("**__").append("\n");
+        tempString.append("**Level:** ").append(summoner.getLevel()).append("\n");
+        tempString.append("**Region:** ").append(REGION_MAP.get(summoner.getRegion().toString())).append("\n");
 
-        outputString.append("\n__**Top 3 Champs By Mastery:**__\n");
+        tempString.append("\n__**Top 3 Champs By Mastery:**__\n");
         //Get the champion mastery stats on all champs they have a point on
         ChampionMasteries champMasts = summoner.getChampionMasteries();
         //Only want to display their top three, which are the first three
@@ -502,89 +464,16 @@ public class LeagueListener extends ListenerAdapter{
             //Get the champ
             ChampionMastery singleChampMast = champMasts.get(i);
             //Build the Rank, champion name, and champion points output
-            outputString.append(String.valueOf(i+1)).append(". ")
+            tempString.append(String.valueOf(i+1)).append(". ")
                     .append(singleChampMast.getChampion().getName()).append(" - ")
                     .append(String.valueOf(singleChampMast.getPoints()))
                     .append(" pts\n");
         }
         System.out.println(summoner.isInGame());
         //Send message in channel it was received in
-        event.getChannel().sendMessage(outputString.toString()).queue();
+        return tempString.toString();
     }
-    
-    /**
-     * summonerCurrentGame - Outputs info about the current game the given summoner
-     * is in on the NA server
-     * @param args - ArrayList of the given summoner name split on spaces
-     * @param region - String of the given abbreviated region to search on
-     * @param event - MessageReceivedEvent instance generated when the bot
-     * a message the bot can read it received.
-     */
-    @SuppressWarnings("empty-statement")
-    private void summonerCurrentGame(ArrayList args, String region, MessageReceivedEvent event){
-        //Reset output string, set up Orianna, and summoner name
-        setUpOrianna();
-        outputString.setLength(0);
-        //Build proper name
-        summonerName = getSummonerName(args);
-        //Get the summoner, NA if no region is given
-        if(region.equals("NA"))
-            summoner = getSummoner(summonerName);
-        else{
-            summoner = getSummonerRegionSpecific(summonerName, REGIONABB_MAP.get(region));
-        }
-        
-        //Make sure summoner exists
-        if(!checkSummonerExists(summoner)){
-            summonerDoesNotExist(summonerName, event, REGIONABB_MAP.get(region));
-            return;
-        }
-        
-        //Get the positions summoner is in for the leagues they are ranked in
-        final CurrentMatch currentGame = summoner.getCurrentMatch();
-        //Make sure they are in a game
-        if(currentGame.exists()){
-            //Get game type and duration
-            String queueName = QUEUE_MAP.get(currentGame.getQueue().toString());
-            final Player player = currentGame.getParticipants().find(summoner);
-            Interval interval = new Interval(currentGame.getCreationTime(), DateTime.now());
-            //Get proper seconds format
-            String seconds = String.valueOf((int)interval.toDuration().getStandardSeconds()%60);
-            if(seconds.length() == 1)
-                seconds = "0" + seconds;
-            //Combine minutes and seconds for game duration
-            String gameDuration = String.valueOf((int)interval.toDuration().getStandardSeconds()/60)
-                    + ":" + seconds;
-            
-            outputString.append("**").append(summonerName).append("** is in a **")
-                    .append(queueName).append("** game!\n")
-                    .append("**Server:** ").append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("\n")
-                    .append("**Champion: **").append(player.getChampion().getName()).append("\n")
-                    .append("**Duration: **").append(gameDuration).append("\n")
-                    .append("**Team Side: **").append(TEAM_MAP.get(player.getTeam().getSide().name())).append("\n");
-            if(queueName.equals("Solo/Duo 5v5") ||queueName.equals("Summoners Rift Draft 5v5")){
-                outputString.append("__**Bans:**__\n**Blue:** ");
-                //Get all blue teams bans and output them
-                currentGame.getBlueTeam().getBans().forEach((blueBan) -> {
-                    outputString.append(blueBan.getName()).append(" | ");
-                });
-                outputString.append("\n**Red:** ");
-                //Get all blue teams bans and output them
-                currentGame.getRedTeam().getBans().forEach((redBan) -> {
-                    outputString.append(redBan.getName()).append(" | ");
-                });
-            }
-            //Send message in channel it was received in
-            event.getChannel().sendMessage(outputString.toString()).queue();
-        }
-        else{
-            outputString.setLength(0);
-            outputString.append("**").append(summonerName).append("** is not in game on the **")
-                    .append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("** server");
-            event.getChannel().sendMessage(outputString.toString()).queue();
-        }
-    }
-    
+
     /**
      * checkSummonerExists - Return true if summoner exists false otherwise
      * @param summoner - summoner to check if they exist
@@ -604,12 +493,135 @@ public class LeagueListener extends ListenerAdapter{
     /**
      * summonerDoesNotExist - Outputs that the summoner does not exist on the NA server
      * @param summonerName - name of given summoner
-     * @param event - MessageReceivedEvent instance generated when the bot
-     * a message the bot can read it received.
+     * @return String - String of the formatted output
      */
-    private void summonerDoesNotExist(String summonerName, MessageReceivedEvent event, String region){
-        outputString.append("**").append(summonerName).append("** does not exist on the **")
+    private String summonerDoesNotExist(String summonerName, String region){
+        StringBuilder tempString = new StringBuilder().append("**").append(summonerName).append("** does not exist on the **")
                 .append(REGION_MAP.get(region)).append("** server");
-        event.getChannel().sendMessage(outputString.toString()).queue();
+        return tempString.toString();
+    }
+    
+    /**
+     * summonerLiveGame - Outputs info about the current game the given summoner
+     * is in on the given server
+     * @param args - ArrayList of the given summoner name split on spaces
+     * @param region - String of the given abbreviated region to search on
+     * @return String - String of the formatted output
+     */
+    private String summonerLiveGame(ArrayList args, String region){
+        //Setup output string, set up Orianna, and summoner name
+        setUpOrianna();
+        StringBuilder tempString = new StringBuilder();
+        //Build proper name
+        String summonerName = getSummonerName(args);
+        //Get the summoner, NA if no region is given
+        Summoner summoner;
+        if(region.equals("NA"))
+            summoner = getSummoner(summonerName);
+        else{
+            summoner = getSummonerRegionSpecific(summonerName, REGIONABB_MAP.get(region));
+        }
+
+        //Make sure summoner exists
+        if(!checkSummonerExists(summoner)){
+            return summonerDoesNotExist(summonerName, REGIONABB_MAP.get(region));
+        }
+        //Proper summoner name
+        String properName = summoner.getName();
+        //Get the positions summoner is in for the leagues they are ranked in
+        final CurrentMatch currentGame = summoner.getCurrentMatch();
+        //Make sure they are in a game
+        if(currentGame.exists()){
+            //Get game type and duration
+            String queueName = QUEUE_MAP.get(currentGame.getQueue().toString());
+            final Player player = currentGame.getParticipants().find(summoner);
+            Interval interval = new Interval(currentGame.getCreationTime(), DateTime.now());
+            //Get proper seconds format
+            String seconds = String.valueOf((int)interval.toDuration().getStandardSeconds()%60);
+            if(seconds.length() == 1)
+                seconds = "0" + seconds;
+            //Combine minutes and seconds for game duration
+            String gameDuration = String.valueOf((int)interval.toDuration().getStandardSeconds()/60)
+                    + ":" + seconds;
+            tempString.append("**").append(properName).append("** is in a **")
+                    .append(queueName).append("** game!\n")
+                    .append("**Server:** ").append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("\n")
+                    .append("**Champion: **").append(player.getChampion().getName()).append("\n")
+                    .append("**Spells: **").append(player.getSummonerSpellD().getName()).append("/").append(player.getSummonerSpellF().getName()).append("\n")
+                    .append("**Duration: **").append(gameDuration).append("\n")
+                    .append("**Team Side: **").append(TEAM_MAP.get(player.getTeam().getSide().name())).append("\n\n");
+            /*
+            if(queueName.equals("Solo/Duo 5v5") || queueName.equals("Summoners Rift Draft 5v5")){
+                outputString.append("__**Bans:**__\n**Blue:** ");
+                //Get all blue teams bans and output them
+                currentGame.getBlueTeam().getBans().forEach((blueBan) -> {
+                    outputString.append(blueBan.getName()).append(" | ");
+                });
+                outputString.append("\n**Red:** ");
+                //Get all blue teams bans and output them
+                currentGame.getRedTeam().getBans().forEach((redBan) -> {
+                    outputString.append(redBan.getName()).append(" | ");
+                });
+            }*/
+            if(QUEUE_MAP.get(currentGame.getQueue().toString()).equals("Solo/Duo 5v5")){
+                tempString.append("Name|Champ|S8 Rank|Ranked WR|S7 Rank|\n\n");
+                tempString.append("__**Blue Team**__\n");
+                currentGame.getBlueTeam().getParticipants().forEach((bluePlayer) -> {
+                    //Get Summoner and league position
+                    Summoner playerProf = bluePlayer.getSummoner();
+                    LeaguePosition position = playerProf.getLeaguePosition(Queue.RANKED_SOLO_5x5);
+                    //Get Summoner name
+                    tempString.append(playerProf.getName()).append(" | ");
+                    //Get Champion name
+                    tempString.append(bluePlayer.getChampion().getName()).append(" | ");
+                    //Get D and F SummonerSpell
+                    //tempString.append(bluePlayer.getSummonerSpellD().getName()).append(":").append(bluePlayer.getSummonerSpellF().getName()).append(" | ");
+                    //Get first letter of the players Solo/Duo 5v5 Tier
+                    tempString.append(position.getTier().toString().substring(0,1));
+                    //Get the integer value of the players Solo/Duo 5v5 Division
+                    tempString.append(DIVISION_MAP.get(position.getDivision().toString()));
+                    //Get the amount of LP the player has in the Solo/Duo 5v5 Queue
+                    tempString.append("(").append(position.getLeaguePoints()).append("LP) | ");
+                    //Get win percent and games played
+                    int wins = position.getWins();
+                    int losses = position.getLosses();
+                    double winPercent = (double)wins/((double)wins+(double)losses);
+                    tempString.append(Math.round(winPercent * 100)).append("%(").append(wins+losses).append("GP) | ");
+                    //Get players highest tier last season
+                    tempString.append(playerProf.getHighestTier(Season.SEASON_8).toString().substring(0,1)).append("\n");
+                });
+                tempString.append("\n__**Red Team**__\n");
+                currentGame.getRedTeam().getParticipants().forEach((redPlayer) -> {
+                    //Get Summoner and league position
+                    Summoner playerProf = redPlayer.getSummoner();
+                    LeaguePosition position = playerProf.getLeaguePosition(Queue.RANKED_SOLO_5x5);
+                    //Get Summoner name
+                    tempString.append(playerProf.getName()).append(" | ");
+                    //Get Champion name
+                    tempString.append(redPlayer.getChampion().getName()).append(" | ");
+                    //Get D and F SummonerSpell
+                    //tempString.append(redPlayer.getSummonerSpellD().getName()).append("/").append(redPlayer.getSummonerSpellF().getName()).append(" | ");
+                    //Get first letter of the players Solo/Duo 5v5 Tier
+                    tempString.append(position.getTier().toString().substring(0,1));
+                    //Get the integer value of the players Solo/Duo 5v5 Division
+                    tempString.append(DIVISION_MAP.get(position.getDivision().toString()));
+                    //Get the amount of LP the player has in the Solo/Duo 5v5 Queue
+                    tempString.append("(").append(position.getLeaguePoints()).append("LP) | ");
+                    //Get win percent and games played
+                    int wins = position.getWins();
+                    int losses = position.getLosses();
+                    double winPercent = (double)wins/((double)wins+(double)losses);
+                    tempString.append(Math.round(winPercent * 100)).append("%(").append(wins+losses).append("GP) | ");
+                    //Get players highest tier last season
+                    tempString.append(playerProf.getHighestTier(Season.SEASON_8).toString().substring(0,1)).append("\n");
+                });
+            }
+        }
+        //Summoner is not in game
+        else{
+            tempString.append("**").append(properName).append("** is not in game on the **")
+                    .append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("** server");
+        }
+        return tempString.toString();
     }
 }

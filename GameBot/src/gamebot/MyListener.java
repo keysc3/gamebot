@@ -22,7 +22,7 @@ import org.apache.commons.lang3.StringUtils;
  * 
  * private
  * 
- * dbOps                    DataboseOps object for database operations
+ * dbOps                DataboseOps object for database operations
  * 
  */
 public class MyListener extends ListenerAdapter {

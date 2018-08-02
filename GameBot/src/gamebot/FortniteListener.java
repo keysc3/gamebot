@@ -39,27 +39,22 @@ import org.json.JSONObject;
  * private
  * 
  * MODE_MAP                 HashMap of FortniteTrackers API keys for game modes to more user friendly strings
- * outputString             StringBuilder used to format output
  * platformList             List of all the API platforms
  * totalModes               List of all the API lifetime game modes
  * currModes                List of all the API current season game modes
  * dbOps                    DataboseOps object for database operations
  * throttler                RateLimiter to throttle request to the API
  * playerJson               JSONObject to hold the currently requested players statistics
- * epicName                 String of the users proper epic name
  * 
  */
 public class FortniteListener extends ListenerAdapter {
     private static final Map<String, String> MODE_MAP = createModeMap();
-    private final StringBuilder outputString = new StringBuilder();
     private final List<String> platformList = Arrays.asList("pc", "psn", "xbl");
     private final List<String> totalModes = Arrays.asList("p2", "p10", "p9");
     private final List<String> currModes = Arrays.asList("curr_p2", "curr_p10", "curr_p9");
     private final DatabaseOps dbOps = new DatabaseOps();
     //1 request per 2 seconds
     private final RateLimiter throttle = RateLimiter.create(0.5);
-    private JSONObject playerJson;
-    private String epicName;
     
     /**
      * onMessageReceived - Handles the Listeners actions when a message is received
@@ -84,7 +79,12 @@ public class FortniteListener extends ListenerAdapter {
             ArrayList<JSONObject> jsonArray = new ArrayList<>();
             //Get number of args
             int numArgs = args.size();
-            outputString.setLength(0);
+            //For output formatting
+            StringBuilder outputString = new StringBuilder();
+            //Hold current json
+            JSONObject playerJson;
+            //For proper username
+            String epicName;
             //Switch used to process the command given
             switch(command){
                 //Outputs all the Fortnite related commands
@@ -359,6 +359,7 @@ public class FortniteListener extends ListenerAdapter {
     private ArrayList<JSONObject> getAllJsons(String epicName) throws ProtocolException, IOException{
         //Array for the players jsons
         ArrayList<JSONObject> jsonArray = new ArrayList<>();
+        JSONObject playerJson;
         //Get JSON for each platform the user has played on
         for(String platform : platformList){
             playerJson = makeRequest(platform, epicName);
