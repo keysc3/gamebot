@@ -12,6 +12,7 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -42,6 +43,7 @@ import org.json.JSONObject;
  * platformList             List of all the API platforms
  * totalModes               List of all the API lifetime game modes
  * currModes                List of all the API current season game modes
+ * dbOps                    DataboseOps object for database operations
  * throttler                RateLimiter to throttle request to the API
  * playerJson               JSONObject to hold the currently requested players statistics
  * epicName                 String of the users proper epic name
@@ -53,6 +55,7 @@ public class FortniteListener extends ListenerAdapter {
     private final List<String> platformList = Arrays.asList("pc", "psn", "xbl");
     private final List<String> totalModes = Arrays.asList("p2", "p10", "p9");
     private final List<String> currModes = Arrays.asList("curr_p2", "curr_p10", "curr_p9");
+    private final DatabaseOps dbOps = new DatabaseOps();
     //1 request per 2 seconds
     private final RateLimiter throttle = RateLimiter.create(0.5);
     private JSONObject playerJson;
@@ -66,106 +69,115 @@ public class FortniteListener extends ListenerAdapter {
      */
     @Override
     public void onMessageReceived(MessageReceivedEvent event){
-        //Get the readable contents of the message
-        String message = event.getMessage().getContentDisplay();
-        //Dont respond to other bots, this bot, and only handle league commands
-        if (event.getAuthor().isBot() || !message.startsWith(GameBot.config.getProperty("prefix") + "fn")) return;
-        //Split the args on a space to get them all
-        ArrayList<String> args = new ArrayList<>(Arrays.asList(message.split(" ")));
-        //Get the command without the prefix
-        String command = args.get(0).substring(1);
-        //Remove the command from the argument list
-        args.remove(0);
-        //Array for the players jsons
-        ArrayList<JSONObject> jsonArray = new ArrayList<>();
-        //Get number of args
-        int numArgs = args.size();
-        outputString.setLength(0);
-        //Switch used to process the command given
-        switch(command){
-            //Outputs all the Fortnite related commands
-            case "fnHelp":
-                outputString.setLength(0);
-                outputString.append("__**Fortnite Commands**__\n");
-                outputString.append("**!fnLifetime <epicgames_name>:** Outputs stats for lifetime"
-                        + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
-                outputString.append("**!fnCurrent <epicgames_name>:** Outputs stats for the current seasons"
-                        + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
-                //Send message in channel it was received
-                event.getChannel().sendMessage(outputString.toString()).queue();
-                break;
-            //Outputs a players lifetime totals and lifetime solos,duos, and squads totals
-            case "fnLifetime":
-                //Must have a name to search for
-                if(numArgs < 1){
-                   event.getChannel().sendMessage("**Usage: !fnLifetime <Epic_Name>**").queue();
-                   break;
-                }
-                //Incase they had a space in their epic name
-                epicName = StringUtils.join(args, ' ');
-                
-                try {
-                    //Get all JSONs for the specified player
-                    jsonArray = getAllJsons(epicName);
-                } catch (IOException ex) {
-                    Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                //If the array is empty the player does not exist
-                if(jsonArray.isEmpty()){
-                    playerNotFound(epicName, event);
+        try {
+            //Get the readable contents of the message
+            String message = event.getMessage().getContentDisplay();
+            //Dont respond to other bots, this bot, and only handle league commands
+            if (event.getAuthor().isBot() || !message.startsWith(GameBot.config.getProperty("prefix") + "fn")) return;
+            //Split the args on a space to get them all
+            ArrayList<String> args = new ArrayList<>(Arrays.asList(message.split(" ")));
+            //Get the command without the prefix
+            String command = args.get(0).substring(1);
+            //Remove the command from the argument list
+            args.remove(0);
+            //Array for the players jsons
+            ArrayList<JSONObject> jsonArray = new ArrayList<>();
+            //Get number of args
+            int numArgs = args.size();
+            outputString.setLength(0);
+            //Switch used to process the command given
+            switch(command){
+                //Outputs all the Fortnite related commands
+                case "fnHelp":
+                    outputString.setLength(0);
+                    outputString.append("__**Fortnite Commands**__\n");
+                    outputString.append("**!fnLifetime <epicgames_name>:** Outputs stats for lifetime"
+                            + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
+                    outputString.append("**!fnCurrent <epicgames_name>:** Outputs stats for the current seasons"
+                            + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
+                    //Send message in channel it was received
+                    event.getChannel().sendMessage(outputString.toString()).queue();
+                    //Add use to db
+                    dbOps.dbUpdate(event, "fnHelp");
                     break;
-                }
-                //If the player has played on more than one platform, get the json of their favourite
-                if(jsonArray.size() > 1)
-                    playerJson = getFavePlatform(jsonArray);
-                else
-                    playerJson = jsonArray.get(0);
-                //Format the players header
-                outputString.append(playerHeader(playerJson));
-                //Get the players lifetime totals
-                outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
-                //For each game mode get and display the players stats
-                for(String mode : totalModes)
-                    outputString.append(getGameModeStats(playerJson, mode)).append("\n\n");
-                //Send a message in the channel it was recieved
-                event.getChannel().sendMessage(outputString.toString()).queue();
-                
-                break;
-            //Outputs a players current season totals and current season solos,duos, and squads totals
-            case "fnCurrent":
-                //Must have a name to search for
-                if(numArgs < 1){
-                   event.getChannel().sendMessage("**Usage: !fnCurrent <Epic_Name>**").queue();
-                   break;
-                }
-                //Incase they had a space in their epic name
-                epicName = StringUtils.join(args, ' ');  
-                try {
-                    //Get all JSONs for the specified player
-                    jsonArray = getAllJsons(epicName);
-                } catch (IOException ex) {
-                    Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                //If the array is empty the player does not exist
-                if(jsonArray.isEmpty()){
-                    playerNotFound(epicName, event);
+                    //Outputs a players lifetime totals and lifetime solos,duos, and squads totals
+                case "fnLifetime":
+                    //Must have a name to search for
+                    if(numArgs < 1){
+                        event.getChannel().sendMessage("**Usage: !fnLifetime <Epic_Name>**").queue();
+                        break;
+                    }
+                    //Incase they had a space in their epic name
+                    epicName = StringUtils.join(args, ' ');
+                    
+                    try {
+                        //Get all JSONs for the specified player
+                        jsonArray = getAllJsons(epicName);
+                    } catch (IOException ex) {
+                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    //If the array is empty the player does not exist
+                    if(jsonArray.isEmpty()){
+                        playerNotFound(epicName, event);
+                        break;
+                    }
+                    //If the player has played on more than one platform, get the json of their favourite
+                    if(jsonArray.size() > 1)
+                        playerJson = getFavePlatform(jsonArray);
+                    else
+                        playerJson = jsonArray.get(0);
+                    //Format the players header
+                    outputString.append(playerHeader(playerJson));
+                    //Get the players lifetime totals
+                    outputString.append(getLifeTimeStats(playerJson)).append("\n\n");
+                    //For each game mode get and display the players stats
+                    for(String mode : totalModes)
+                        outputString.append(getGameModeStats(playerJson, mode)).append("\n\n");
+                    //Send a message in the channel it was recieved
+                    event.getChannel().sendMessage(outputString.toString()).queue();
+                    //Add use to db
+                    dbOps.dbUpdate(event, "fnLifetime");
                     break;
-                }
-                //If the player has played on more than one platform, get the json of their favourite
-                if(jsonArray.size() > 1)
-                    playerJson = getFavePlatform(jsonArray);
-                else
-                    playerJson = jsonArray.get(0);
-                //Format the players header
-                outputString.append(playerHeader(playerJson));
-                //Get the players current season totals
-                outputString.append(getCurrentTotalStats(playerJson)).append("\n\n");
-                //For each game mode get and display the players stats
-                for(String mode : currModes)
-                    outputString.append(getGameModeStats(playerJson, mode)).append("\n\n");
-                //Send a message in the channel it was recieved
-                event.getChannel().sendMessage(outputString.toString()).queue();
-                break;
+                    //Outputs a players current season totals and current season solos,duos, and squads totals
+                case "fnCurrent":
+                    //Must have a name to search for
+                    if(numArgs < 1){
+                        event.getChannel().sendMessage("**Usage: !fnCurrent <Epic_Name>**").queue();
+                        break;
+                    }
+                    //Incase they had a space in their epic name
+                    epicName = StringUtils.join(args, ' ');
+                    try {
+                        //Get all JSONs for the specified player
+                        jsonArray = getAllJsons(epicName);
+                    } catch (IOException ex) {
+                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    //If the array is empty the player does not exist
+                    if(jsonArray.isEmpty()){
+                        playerNotFound(epicName, event);
+                        break;
+                    }
+                    //If the player has played on more than one platform, get the json of their favourite
+                    if(jsonArray.size() > 1)
+                        playerJson = getFavePlatform(jsonArray);
+                    else
+                        playerJson = jsonArray.get(0);
+                    //Format the players header
+                    outputString.append(playerHeader(playerJson));
+                    //Get the players current season totals
+                    outputString.append(getCurrentTotalStats(playerJson)).append("\n\n");
+                    //For each game mode get and display the players stats
+                    for(String mode : currModes)
+                        outputString.append(getGameModeStats(playerJson, mode)).append("\n\n");
+                    //Send a message in the channel it was recieved
+                    event.getChannel().sendMessage(outputString.toString()).queue();
+                    //Add use to db
+                    dbOps.dbUpdate(event, "fnCurrent");
+                    break;
+            }
+        } catch (SQLException | IllegalAccessException ex) {
+            Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     

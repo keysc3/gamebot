@@ -10,15 +10,19 @@ import com.merakianalytics.orianna.types.core.spectator.CurrentMatch;
 import com.merakianalytics.orianna.types.core.spectator.Player;
 import com.merakianalytics.orianna.types.core.summoner.Summoner;
 import java.io.File;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+
 
 /**
  *Purpose: This class implements a ListenerAdapter for a discord bot. It checks
@@ -45,6 +49,7 @@ import org.joda.time.Interval;
  * summonerName             String - name of the given summoner
  * summoner                 Summoner - summoner object of given summonerName
  * outputString             StringBuilder - used to format output
+ * dbOps                    DataboseOps object for database operations
  * 
  */
 public class LeagueListener extends ListenerAdapter{
@@ -54,6 +59,7 @@ public class LeagueListener extends ListenerAdapter{
     private static final Map<String, String> QUEUE_MAP = createQueueMap();
     private static final Map<String, String> TIER_MAP = createTierMap();
     private static final Map<String, String> TEAM_MAP = createTeamMap();
+    private final DatabaseOps dbOps = new DatabaseOps();
     private int queueWins;
     private int queueLosses;
     private int queuePercent;
@@ -70,132 +76,147 @@ public class LeagueListener extends ListenerAdapter{
      */
     @Override
     public void onMessageReceived(MessageReceivedEvent event){
-        //Get the readable contents of the message
-        String message = event.getMessage().getContentDisplay();
-        //Dont respond to other bots, this bot, and only handle league commands
-        if (event.getAuthor().isBot() || !message.startsWith(GameBot.config.getProperty("prefix") + "lol")) return;
-        //Split the args on a space to get them all
-        ArrayList<String> args = new ArrayList<>(Arrays.asList(message.split(" ")));
-        //Get the command without the prefix
-        String command = args.get(0).substring(1);
-        //Remove the command from the argument list
-        args.remove(0);
-        
-        //Get number of args
-        int numArgs = args.size();
-        //Region abbreviation given
-        String regionGiven;
-        
-        //Switch used to process the command given
-        switch(command){
-            //Outputs all the League of Legends related commands
-            case "lolHelp":
-                outputString.setLength(0);
-                outputString.append("__**League of Legends Commands**__\n");
-                outputString.append("**!lol <summoner_name>:** Outputs info about given ***summoner_name*** in NA\n");
-                outputString.append("**!lolRegion <region> <summoner_name>:** "
-                        + "Outputs info about given ***summoner_name*** in given ***region***\n");
-                outputString.append("**!lolRanks <summoner_name>:** Outputs "
-                        + "given ***summoner_name***'s rank in each queue they are ranked in on the NA server\n");
-                outputString.append("**!lolRanksRegion <region> <summoner_name>:** "
-                        + "Outputs given ***summoner_name***'s rank in each queue they are ranked in on the given ***region***\n");
-                outputString.append("**!lolLive <summoner_name>:** Outputs info about given ***summoner_name***'s live game\n");
-                outputString.append("**!lolLiveRegion <region> <summoner_name>:** Outputs info about given ***summoner_name***'s live "
-                        + "game on the given ***region***\n");
-                //Send message in channel it was received
-                event.getChannel().sendMessage(outputString.toString()).queue();
-                break;
-            //Outputs info about the given summoner if they are on the NA server
-            case "lol":
-                //Must have a summoner to search for
-                if(numArgs < 1){
-                   event.getChannel().sendMessage("**Usage: !lol <Summoner_Name>**").queue();
-                   break;
-                }
-                //Process the summoner
-                summoner(args, "NA", event);
-                break;
-            //Outputs info about the given summoner if they are on the given server
-            case "lolRegion":
-                /*Must have a region to search on and a summoner to search for.
-                The region given must be a key in the abbreviation hashmap*/
-                if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
-                   event.getChannel().sendMessage("**Usage: !lolRegion <Region> <Summoner_Name>**\n" + regionOptions()).queue();
-                   break;
-                }
-                //Get the region abbreviation given and remove it from the args
-                regionGiven = args.get(0);
-                args.remove(0);
-                //Process the summoner
-                summoner(args, regionGiven, event);
-                break;
-            //Outputs info about the Leagues the given summoner is ranked in on the NA server
-            case "lolRanks":
-                //Must have a summoner to search for
-                if(numArgs < 1){
-                   event.getChannel().sendMessage("**Usage: !lolRanks <Summoner_Name>**").queue();
-                   break;
-                }
-                //Process the summoner
-                summonerRanks(args, "NA", event);
-                break;
-            //Outputs info about the Leagues the given summoner is ranked in on the given server
-            case "lolRanksRegion":
-                /*Must have a region to search on and a summoner to search for.
-                The region given must be a key in the abbreviation hashmap*/
-                if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
-                   event.getChannel().sendMessage("**Usage: !lolRanksRegion <Region> <Summoner_Name>**\n" + regionOptions()).queue();
-                   break;
-                }
-                //Get the region abbreviation given and remove it from the args
-                regionGiven = args.get(0);
-                args.remove(0);
-                //Process the summoner
-                summonerRanks(args, regionGiven, event);
-                break;
-            //Outputs info about the current game the given summoner is in on NA
-            case "lolLive":
-                //Must have a summoner to search for
-                if(numArgs < 1){
-                   event.getChannel().sendMessage("**Usage: !lolCurrentGame <Summoner_Name>**\n").queue();
-                   break;
-                }
-                //Process the summoner
-                summonerCurrentGame(args, "NA", event);
-                break;
-            //Outputs info about the current game the given summoner is in on given region
-            case "lolLiveRegion":
-                /*Must have a region to search on and a summoner to search for.
-                The region given must be a key in the abbreviation hashmap*/
-                if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
-                   event.getChannel().sendMessage("**Usage: !lolCurrentGameRegion <Region> <Summoner_Name>**\n" + regionOptions()).queue();
-                   break;
-                }
-                //Get the region abbreviation given and remove it from the args
-                regionGiven = args.get(0);
-                args.remove(0);
-                //Process the summoner
-                summonerCurrentGame(args, regionGiven, event);
-                break;
-                
-            /*
-            case "summonerQueueRank":
-                //Must have a summoner to search for
-                if(numArgs < 1){
-                   event.getChannel().sendMessage("**Usage: !summonerRanks <Summoner_Name>**").queue();
-                   break;
-                }
-                //Set up output string, Orianna, and summoner name
-                setUpOrianna();
-                outputString.setLength(0);
-                //Build proper name
-                summonerName = getSummonerName(args);
-                //Get the summoner
-                summoner = getSummoner(summonerName);
-                //Get position summoner is in for the leagues they are ranked in
-                final LeaguePosition position1 = summoner.getLeaguePosition(Queue.RANKED_SOLO_5x5);
-                //Make sure the summoner is ranked
-                if(position1 != null){
+        try {
+            //Get the readable contents of the message
+            String message = event.getMessage().getContentDisplay();
+            //Dont respond to other bots, this bot, and only handle league commands
+            if (event.getAuthor().isBot() || !message.startsWith(GameBot.config.getProperty("prefix") + "lol")) return;
+            //Split the args on a space to get them all
+            ArrayList<String> args = new ArrayList<>(Arrays.asList(message.split(" ")));
+            //Get the command without the prefix
+            String command = args.get(0).substring(1);
+            //Remove the command from the argument list
+            args.remove(0);
+            
+            //Get number of args
+            int numArgs = args.size();
+            //Region abbreviation given
+            String regionGiven;
+            
+            //Switch used to process the command given
+            switch(command){
+                //Outputs all the League of Legends related commands
+                case "lolHelp":
+                    outputString.setLength(0);
+                    outputString.append("__**League of Legends Commands**__\n");
+                    outputString.append("**!lol <summoner_name>:** Outputs info about given ***summoner_name*** in NA\n");
+                    outputString.append("**!lolRegion <region> <summoner_name>:** "
+                            + "Outputs info about given ***summoner_name*** in given ***region***\n");
+                    outputString.append("**!lolRanks <summoner_name>:** Outputs "
+                            + "given ***summoner_name***'s rank in each queue they are ranked in on the NA server\n");
+                    outputString.append("**!lolRanksRegion <region> <summoner_name>:** "
+                            + "Outputs given ***summoner_name***'s rank in each queue they are ranked in on the given ***region***\n");
+                    outputString.append("**!lolLive <summoner_name>:** Outputs info about given ***summoner_name***'s live game\n");
+                    outputString.append("**!lolLiveRegion <region> <summoner_name>:** Outputs info about given ***summoner_name***'s live "
+                            + "game on the given ***region***\n");
+                    //Add use to db
+                    dbOps.dbUpdate(event, "lolHelp");
+                    //Send message in channel it was received
+                    event.getChannel().sendMessage(outputString.toString()).queue();
+                    break;
+                    //Outputs info about the given summoner if they are on the NA server
+                case "lol":
+                    //Must have a summoner to search for
+                    if(numArgs < 1){
+                        event.getChannel().sendMessage("**Usage: !lol <Summoner_Name>**").queue();
+                        break;
+                    }
+                    //Process the summoner
+                    summoner(args, "NA", event);
+                    //Add use to db
+                    dbOps.dbUpdate(event, "lol");
+                    break;
+                    //Outputs info about the given summoner if they are on the given server
+                case "lolRegion":
+                    /*Must have a region to search on and a summoner to search for.
+                    The region given must be a key in the abbreviation hashmap*/
+                    if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
+                        event.getChannel().sendMessage("**Usage: !lolRegion <Region> <Summoner_Name>**\n" + regionOptions()).queue();
+                        break;
+                    }
+                    //Get the region abbreviation given and remove it from the args
+                    regionGiven = args.get(0);
+                    args.remove(0);
+                    //Process the summoner
+                    summoner(args, regionGiven, event);
+                    //Add use to db
+                    dbOps.dbUpdate(event, "lolRegion");
+                    break;
+                    //Outputs info about the Leagues the given summoner is ranked in on the NA server
+                case "lolRanks":
+                    //Must have a summoner to search for
+                    if(numArgs < 1){
+                        event.getChannel().sendMessage("**Usage: !lolRanks <Summoner_Name>**").queue();
+                        break;
+                    }
+                    //Process the summoner
+                    summonerRanks(args, "NA", event);
+                    //Add use to db
+                    dbOps.dbUpdate(event, "lolRanks");
+                    break;
+                    //Outputs info about the Leagues the given summoner is ranked in on the given server
+                case "lolRanksRegion":
+                    /*Must have a region to search on and a summoner to search for.
+                    The region given must be a key in the abbreviation hashmap*/
+                    if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
+                        event.getChannel().sendMessage("**Usage: !lolRanksRegion <Region> <Summoner_Name>**\n" + regionOptions()).queue();
+                        break;
+                    }
+                    //Get the region abbreviation given and remove it from the args
+                    regionGiven = args.get(0);
+                    args.remove(0);
+                    //Process the summoner
+                    summonerRanks(args, regionGiven, event);
+                    //Add use to db
+                    dbOps.dbUpdate(event, "lolRanksRegion");
+                    break;
+                    //Outputs info about the current game the given summoner is in on NA
+                case "lolLive":
+                    //Must have a summoner to search for
+                    if(numArgs < 1){
+                        event.getChannel().sendMessage("**Usage: !lolCurrentGame <Summoner_Name>**\n").queue();
+                        break;
+                    }
+                    //Process the summoner
+                    summonerCurrentGame(args, "NA", event);
+                    //Add use to db
+                    dbOps.dbUpdate(event, "lolLive");
+                    break;
+                    //Outputs info about the current game the given summoner is in on given region
+                case "lolLiveRegion":
+                    /*Must have a region to search on and a summoner to search for.
+                    The region given must be a key in the abbreviation hashmap*/
+                    if(numArgs < 2 || REGIONABB_MAP.get(args.get(0)) == null){
+                        event.getChannel().sendMessage("**Usage: !lolCurrentGameRegion <Region> <Summoner_Name>**\n" + regionOptions()).queue();
+                        break;
+                    }
+                    //Get the region abbreviation given and remove it from the args
+                    regionGiven = args.get(0);
+                    args.remove(0);
+                    //Process the summoner
+                    summonerCurrentGame(args, regionGiven, event);
+                    //Add use to db
+                    dbOps.dbUpdate(event, "lolLiveRegion");
+                    break;
+                    
+                    /*
+                    case "summonerQueueRank":
+                    //Must have a summoner to search for
+                    if(numArgs < 1){
+                    event.getChannel().sendMessage("**Usage: !summonerRanks <Summoner_Name>**").queue();
+                    break;
+                    }
+                    //Set up output string, Orianna, and summoner name
+                    setUpOrianna();
+                    outputString.setLength(0);
+                    //Build proper name
+                    summonerName = getSummonerName(args);
+                    //Get the summoner
+                    summoner = getSummoner(summonerName);
+                    //Get position summoner is in for the leagues they are ranked in
+                    final LeaguePosition position1 = summoner.getLeaguePosition(Queue.RANKED_SOLO_5x5);
+                    //Make sure the summoner is ranked
+                    if(position1 != null){
                     //Get the summoners league name, tier, division, and LP
                     int rankedFiveWins = position1.getWins();
                     int rankedFiveLosses = position1.getLosses();
@@ -206,20 +227,23 @@ public class LeagueListener extends ListenerAdapter{
                     outputString.append("**Division:** ").append(position1.getDivision().toString()).append("\n");
                     outputString.append("**LP:** ").append(String.valueOf(position1.getLeaguePoints())).append("\n");
                     outputString.append("**Win/Loss:** ").append(String.valueOf(rankedFiveWins))
-                            .append("/").append(String.valueOf(rankedFiveLosses))
-                            .append(" (").append(String.valueOf(rankedFivesPercent))
-                            .append("%)\n");
+                    .append("/").append(String.valueOf(rankedFiveLosses))
+                    .append(" (").append(String.valueOf(rankedFivesPercent))
+                    .append("%)\n");
                     if(position1.getPromos() != null) {
-                        // If the summoner is in their promos show progress
-                        outputString.append("**Promos progress: **")
-                                .append(position1.getPromos().getProgess().replace('N', '-'))
-                                .append("\n");
+                    // If the summoner is in their promos show progress
+                    outputString.append("**Promos progress: **")
+                    .append(position1.getPromos().getProgess().replace('N', '-'))
+                    .append("\n");
                     }
-                }
-                //Summoner is not ranked
-                else{
+                    }
+                    //Summoner is not ranked
+                    else{
                     outputString.append("**Solo/Duo League:** Summoner is not ranked in the Solo/Duo 5v5 queue\n");
-                }*/
+                    }*/
+            }
+        } catch (SQLException | IllegalAccessException ex) {
+            Logger.getLogger(LeagueListener.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -460,7 +484,6 @@ public class LeagueListener extends ListenerAdapter{
         }
 
         //Make sure summoner exists
-        System.out.println(checkSummonerExists(summoner));
         if(!checkSummonerExists(summoner)){
             summonerDoesNotExist(summonerName, event, REGIONABB_MAP.get(region));
             return;
