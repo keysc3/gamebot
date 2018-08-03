@@ -545,6 +545,8 @@ public class LeagueListener extends ListenerAdapter{
             //Combine minutes and seconds for game duration
             String gameDuration = String.valueOf((int)interval.toDuration().getStandardSeconds()/60)
                     + ":" + seconds;
+            if(gameDuration.length() > 5)
+                gameDuration = "Loading In!";
             tempString.append("__**").append(properName).append("**__ is in a __**")
                     .append(queueName).append("**__ game!\n")
                     .append("**Server:** ").append(REGION_MAP.get(REGIONABB_MAP.get(region))).append("\n")
