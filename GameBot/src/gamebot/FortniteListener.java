@@ -95,6 +95,8 @@ public class FortniteListener extends ListenerAdapter {
                             + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
                     outputString.append("**!fnCurrent <epicgames_name>:** Outputs stats for the current seasons"
                             + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
+                    outputString.append("**!fnCompare <epicgames_name>;<epicgames_name>:** Compares and outputs lifetime"
+                            + " solos, duos, and squads about given ***epicgames_name***'s on their most played platform (Split player names with a semicolon)\n");
                     //Send message in channel it was received
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
@@ -109,13 +111,9 @@ public class FortniteListener extends ListenerAdapter {
                     }
                     //Incase they had a space in their epic name
                     epicName = StringUtils.join(args, ' ');
-                    
-                    try {
-                        //Get all JSONs for the specified player
-                        jsonArray = getAllJsons(epicName);
-                    } catch (IOException ex) {
-                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+                    //Get all JSONs for the specified player
+                    jsonArray = getAllJsons(epicName);
+
                     //If the array is empty the player does not exist
                     if(jsonArray.isEmpty()){
                         playerNotFound(epicName, event);
@@ -147,12 +145,8 @@ public class FortniteListener extends ListenerAdapter {
                     }
                     //Incase they had a space in their epic name
                     epicName = StringUtils.join(args, ' ');
-                    try {
-                        //Get all JSONs for the specified player
-                        jsonArray = getAllJsons(epicName);
-                    } catch (IOException ex) {
-                        Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
-                    }
+                    //Get all JSONs for the specified player
+                    jsonArray = getAllJsons(epicName);
                     //If the array is empty the player does not exist
                     if(jsonArray.isEmpty()){
                         playerNotFound(epicName, event);
@@ -175,8 +169,43 @@ public class FortniteListener extends ListenerAdapter {
                     //Add use to db
                     dbOps.dbUpdate(event, "fnCurrent");
                     break;
+                case "fnCompare":
+                     //Must have a name to search for
+                    if(numArgs < 1 || !StringUtils.join(args, ' ').contains(";")){
+                        event.getChannel().sendMessage("**Usage: !fnCompare <Epic_Name>;<Epic_Name>\nMake "
+                                + "sure there is a semicolon ( ; ) seperating the player names**").queue();
+                        break;
+                    }
+                    //Get player names
+                    ArrayList<String> playerNames = new ArrayList<>(Arrays.asList(StringUtils.join(args, ' ').split(";")));
+                    //Array for the players jsons
+                    ArrayList<JSONObject> tempArray = new ArrayList<>();
+                    //List<String> playerNames = Arrays.asList("ExplodingMuffins", "Please Sign Here", "LitFamSquadBae");
+                    //Get each players most played platform
+                    for(String player : playerNames){
+                        tempArray = getAllJsons(player);
+                        if(tempArray.isEmpty()){
+                            playerNotFound("One of the given players", event);
+                            dbOps.dbUpdate(event, "fnCompare");
+                            return;
+                        }
+                        jsonArray.add(getFavePlatform(tempArray));
+                    }
+                    //Set each players lifetime stats
+                    ArrayList<FortnitePlayer> fnPlayers = new ArrayList<>();
+                    for(JSONObject player : jsonArray)
+                        fnPlayers.add(setPlayerStats(player));
+                    outputString.append(comparePlayerStats(fnPlayers));
+                    event.getChannel().sendMessage(outputString.toString()).queue();
+                    //Add use to db
+                    dbOps.dbUpdate(event, "fnCompare");
+                    break;
             }
         } catch (SQLException | IllegalAccessException ex) {
+            Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ProtocolException ex) {
+            Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException ex) {
             Logger.getLogger(FortniteListener.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -218,6 +247,106 @@ public class FortniteListener extends ListenerAdapter {
         in.close();
         JSONObject obj = new JSONObject(response.toString());
         return obj;
+    }
+    
+    /**
+     * seetPlayerStats - Sets the lifetime statistics from the given playerStats JSONobject
+     * on a new FortnitePlayer
+     * @param playerStats - A JSONObject of the requested players statistics
+     * @return player - The created FortnitePlayer object
+     */
+    private FortnitePlayer setPlayerStats(JSONObject playerStats){
+        //Initiate output stringbuilder and header
+        FortnitePlayer player = new FortnitePlayer(playerStats.getString("epicUserHandle"), playerStats.getString("platformName").toUpperCase());
+        JSONObject mode;
+        //Set lifetime totals
+        JSONArray lifetimeArray = playerStats.getJSONArray("lifeTimeStats");
+        player.setLifetimeGp(lifetimeArray.getJSONObject(7).getString("value"), "totalLifetime");
+        player.setLifetimeWins(lifetimeArray.getJSONObject(8).getString("value"), "totalLifetime");
+        player.setLifetimeWp(lifetimeArray.getJSONObject(9).getString("value"), "totalLifetime");
+        player.setLifetimeKills(lifetimeArray.getJSONObject(10).getString("value"), "totalLifetime");
+        player.setLifetimeKd(lifetimeArray.getJSONObject(11).getString("value"), "totalLifetime");
+        //Solo totals
+        if(playerStats.getJSONObject("stats").has("p2")){
+            mode = playerStats.getJSONObject("stats").getJSONObject("p2");
+            player.setLifetimeGp(mode.getJSONObject("matches").getString("displayValue"), "soloLifetime");
+            player.setLifetimeWins(mode.getJSONObject("top1").getString("displayValue"), "soloLifetime");
+            player.setLifetimeWp(mode.getJSONObject("winRatio").getString("displayValue") + "%", "soloLifetime");
+            player.setLifetimeKills(mode.getJSONObject("kills").getString("displayValue"), "soloLifetime");
+            player.setLifetimeKd(mode.getJSONObject("kd").getString("displayValue"), "soloLifetime");
+        }
+        //Duo totals
+        if(playerStats.getJSONObject("stats").has("p10")){
+            mode = playerStats.getJSONObject("stats").getJSONObject("p10");
+            player.setLifetimeGp(mode.getJSONObject("matches").getString("displayValue"), "duoLifetime");
+            player.setLifetimeWins(mode.getJSONObject("top1").getString("displayValue"), "duoLifetime");
+            player.setLifetimeWp(mode.getJSONObject("winRatio").getString("displayValue") + "%", "duoLifetime");
+            player.setLifetimeKills(mode.getJSONObject("kills").getString("displayValue"), "duoLifetime");
+            player.setLifetimeKd(mode.getJSONObject("kd").getString("displayValue"), "duoLifetime");
+        }
+        //Squad totals
+        if(playerStats.getJSONObject("stats").has("p9")){
+            mode = playerStats.getJSONObject("stats").getJSONObject("p9");
+            player.setLifetimeGp(mode.getJSONObject("matches").getString("displayValue"), "squadLifetime");
+            player.setLifetimeWins(mode.getJSONObject("top1").getString("displayValue"), "squadLifetime");
+            player.setLifetimeWp(mode.getJSONObject("winRatio").getString("displayValue") + "%", "squadLifetime");
+            player.setLifetimeKills(mode.getJSONObject("kills").getString("displayValue"), "squadLifetime");
+            player.setLifetimeKd(mode.getJSONObject("kd").getString("displayValue"), "squadLifetime");
+        }
+        
+        return player;
+    }
+    
+    /**
+     * comparePlayerStats - Compares all lifetime statistics between 2 FortniePlayer objects
+     * and creates an output string with both players statistics that highlights whose are better
+     * @param fnPlayers - An ArrayList of the FortnitPlayer objects
+     * @return tempString - A String of the wanted lifetime statistics
+     */
+    private String comparePlayerStats(ArrayList<FortnitePlayer> fnPlayers){
+        //Create output string and variables to hold array objects
+        StringBuilder tempString = new StringBuilder();
+        FortnitePlayer playerOne = fnPlayers.get(0);
+        FortnitePlayer playerTwo = fnPlayers.get(1);
+        //Compare stats
+        playerOne.compareAllLifetime(playerTwo, "totalLifetime");
+        playerOne.compareAllLifetime(playerTwo, "soloLifetime");
+        playerOne.compareAllLifetime(playerTwo, "duoLifetime");
+        playerOne.compareAllLifetime(playerTwo, "squadLifetime");
+        //Make headers
+        tempString.append("__**~ ").append(playerOne.getPlayerName()).append(" (").append(playerOne.getPlatform())
+                .append(")").append(" | ").append(playerTwo.getPlayerName()).append(" (")
+                .append(playerTwo.getPlatform()).append(") ~**__\n\n");
+        //Get the lifetime total games played, wins, win%, kills, and kd values
+        tempString.append("__***Lifetime***__\n");
+        tempString.append("**Games Played:** ").append(playerOne.getLifetimeGp("totalLifetime")).append(" | ").append(playerTwo.getLifetimeGp("totalLifetime")).append("\n");
+        tempString.append("**Wins:** ").append(playerOne.getLifetimeWins("totalLifetime")).append(" | ").append(playerTwo.getLifetimeWins("totalLifetime")).append("\n");
+        tempString.append("**Win %:** ").append(playerOne.getLifetimeWp("totalLifetime")).append(" | ").append(playerTwo.getLifetimeWp("totalLifetime")).append("\n");
+        tempString.append("**Kills:** ").append(playerOne.getLifetimeKills("totalLifetime")).append(" | ").append(playerTwo.getLifetimeKills("totalLifetime")).append("\n");
+        tempString.append("**K/D:** ").append(playerOne.getLifetimeKd("totalLifetime")).append(" | ").append(playerTwo.getLifetimeKd("totalLifetime")).append("\n\n");
+        //Get the solo lifetime games played, wins, win%, kills, and kd values
+        tempString.append("__***Overall Solos***__\n");
+        tempString.append("**Games Played:** ").append(playerOne.getLifetimeGp("soloLifetime")).append(" | ").append(playerTwo.getLifetimeGp("soloLifetime")).append("\n");
+        tempString.append("**Wins:** ").append(playerOne.getLifetimeWins("soloLifetime")).append(" | ").append(playerTwo.getLifetimeWins("soloLifetime")).append("\n");
+        tempString.append("**Win %:** ").append(playerOne.getLifetimeWp("soloLifetime")).append(" | ").append(playerTwo.getLifetimeWp("soloLifetime")).append("\n");
+        tempString.append("**Kills:** ").append(playerOne.getLifetimeKills("soloLifetime")).append(" | ").append(playerTwo.getLifetimeKills("soloLifetime")).append("\n");
+        tempString.append("**K/D:** ").append(playerOne.getLifetimeKd("soloLifetime")).append(" | ").append(playerTwo.getLifetimeKd("soloLifetime")).append("\n\n");
+        //Get the duo lifetime games played, wins, win%, kills, and kd values
+        tempString.append("__***Overall Duos***__\n");
+        tempString.append("**Games Played:** ").append(playerOne.getLifetimeGp("duoLifetime")).append(" | ").append(playerTwo.getLifetimeGp("duoLifetime")).append("\n");
+        tempString.append("**Wins:** ").append(playerOne.getLifetimeWins("duoLifetime")).append(" | ").append(playerTwo.getLifetimeWins("duoLifetime")).append("\n");
+        tempString.append("**Win %:** ").append(playerOne.getLifetimeWp("duoLifetime")).append(" | ").append(playerTwo.getLifetimeWp("duoLifetime")).append("\n");
+        tempString.append("**Kills:** ").append(playerOne.getLifetimeKills("duoLifetime")).append(" | ").append(playerTwo.getLifetimeKills("duoLifetime")).append("\n");
+        tempString.append("**K/D:** ").append(playerOne.getLifetimeKd("duoLifetime")).append(" | ").append(playerTwo.getLifetimeKd("duoLifetime")).append("\n\n");
+        //Get the squad lifetime games played, wins, win%, kills, and kd values
+        tempString.append("__***Overall Squads***__\n");
+        tempString.append("**Games Played:** ").append(playerOne.getLifetimeGp("squadLifetime")).append(" | ").append(playerTwo.getLifetimeGp("squadLifetime")).append("\n");
+        tempString.append("**Wins:** ").append(playerOne.getLifetimeWins("squadLifetime")).append(" | ").append(playerTwo.getLifetimeWins("squadLifetime")).append("\n");
+        tempString.append("**Win %:** ").append(playerOne.getLifetimeWp("squadLifetime")).append(" | ").append(playerTwo.getLifetimeWp("squadLifetime")).append("\n");
+        tempString.append("**Kills:** ").append(playerOne.getLifetimeKills("squadLifetime")).append(" | ").append(playerTwo.getLifetimeKills("squadLifetime")).append("\n");
+        tempString.append("**K/D:** ").append(playerOne.getLifetimeKd("squadLifetime")).append(" | ").append(playerTwo.getLifetimeKd("squadLifetime")).append("\n");
+        
+        return tempString.toString();
     }
     
     /**
