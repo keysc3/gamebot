@@ -7,6 +7,7 @@ import java.util.Stack;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 import org.apache.commons.lang3.StringUtils;
@@ -80,6 +81,11 @@ public class MyListener extends ListenerAdapter {
                     break;
                     //Outputs a random number between 1-100, or 1-given number
                 case "roll":
+                    User user = event.getAuthor();
+                    if(user.getName().equals("cRopFro") && user.getDiscriminator().equals("0300")){
+                        event.getChannel().sendMessage("weed").queue();
+                        break;
+                    }
                     //Set max value and output string
                     int max = 100;
                     outputString.setLength(0);

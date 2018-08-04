@@ -91,12 +91,14 @@ public class FortniteListener extends ListenerAdapter {
                 case "fnHelp":
                     outputString.setLength(0);
                     outputString.append("__**Fortnite Commands**__\n");
+                    outputString.append("**All Fortnite commands default to PC!** If you would like to check xbox or ps4 "
+                            + "stats please put a **colon ( : )** after your name then the console **PSN or XBL** (case insensitive). Ex: StankBank Frank:xbl or nickmercs:psn\n");
                     outputString.append("**!fnLifetime <epicgames_name>:** Outputs stats for lifetime"
-                            + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
+                            + " solos, duos, and squads about given ***epicgames_name*** on pc or the specified platform played platform\n");
                     outputString.append("**!fnCurrent <epicgames_name>:** Outputs stats for the current seasons"
-                            + " solos, duos, and squads about given ***epicgames_name*** on their most played platform\n");
+                            + " solos, duos, and squads about given ***epicgames_name*** on pc or the specified platform platform\n");
                     outputString.append("**!fnCompare <epicgames_name>;<epicgames_name>:** Compares and outputs lifetime"
-                            + " solos, duos, and squads about given ***epicgames_name***'s on their most played platform (Split player names with a semicolon)\n");
+                            + " solos, duos, and squads about given ***epicgames_name***'s on pc or the specified platform (Split player names with a semicolon)\n");
                     //Send message in channel it was received
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
@@ -106,24 +108,27 @@ public class FortniteListener extends ListenerAdapter {
                 case "fnLifetime":
                     //Must have a name to search for
                     if(numArgs < 1){
-                        event.getChannel().sendMessage("**Usage: !fnLifetime <Epic_Name>**").queue();
+                        event.getChannel().sendMessage("**Usage: !fnLifetime <Epic_Name>[:console]**").queue();
                         break;
                     }
                     //Incase they had a space in their epic name
                     epicName = StringUtils.join(args, ' ');
-                    //Get all JSONs for the specified player
-                    jsonArray = getAllJsons(epicName);
-
-                    //If the array is empty the player does not exist
-                    if(jsonArray.isEmpty()){
-                        playerNotFound(epicName, event);
+                    if(epicName.contains(":"))
+                        playerJson = makeRequest(epicName.substring(epicName.indexOf(":")+1), epicName.substring(0, epicName.indexOf(":")));
+                    else
+                        playerJson = makeRequest("pc", epicName);
+                    
+                    if(playerJson.has("error")){
+                        if(epicName.contains(":")){
+                            playerNotFound(epicName.substring(0, epicName.indexOf(":")), event);
+                            dbOps.dbUpdate(event, "fnLifetime");
+                        }
+                        else{
+                            playerNotFound(epicName, event);
+                            dbOps.dbUpdate(event, "fnLifetime");
+                        }
                         break;
                     }
-                    //If the player has played on more than one platform, get the json of their favourite
-                    if(jsonArray.size() > 1)
-                        playerJson = getFavePlatform(jsonArray);
-                    else
-                        playerJson = jsonArray.get(0);
                     //Format the players header
                     outputString.append(playerHeader(playerJson));
                     //Get the players lifetime totals
@@ -140,23 +145,27 @@ public class FortniteListener extends ListenerAdapter {
                 case "fnCurrent":
                     //Must have a name to search for
                     if(numArgs < 1){
-                        event.getChannel().sendMessage("**Usage: !fnCurrent <Epic_Name>**").queue();
+                        event.getChannel().sendMessage("**Usage: !fnCurrent <Epic_Name>[:console]**").queue();
                         break;
                     }
                     //Incase they had a space in their epic name
                     epicName = StringUtils.join(args, ' ');
-                    //Get all JSONs for the specified player
-                    jsonArray = getAllJsons(epicName);
-                    //If the array is empty the player does not exist
-                    if(jsonArray.isEmpty()){
-                        playerNotFound(epicName, event);
+                   if(epicName.contains(":"))
+                        playerJson = makeRequest(epicName.substring(epicName.indexOf(":")+1), epicName.substring(0, epicName.indexOf(":")));
+                    else
+                        playerJson = makeRequest("pc", epicName);
+                    
+                    if(playerJson.has("error")){
+                        if(epicName.contains(":")){
+                            playerNotFound(epicName.substring(0, epicName.indexOf(":")), event);
+                            dbOps.dbUpdate(event, "fnCurrent");
+                        }
+                        else{
+                            playerNotFound(epicName, event);
+                            dbOps.dbUpdate(event, "fnCurrent");
+                        }
                         break;
                     }
-                    //If the player has played on more than one platform, get the json of their favourite
-                    if(jsonArray.size() > 1)
-                        playerJson = getFavePlatform(jsonArray);
-                    else
-                        playerJson = jsonArray.get(0);
                     //Format the players header
                     outputString.append(playerHeader(playerJson));
                     //Get the players current season totals
@@ -172,24 +181,24 @@ public class FortniteListener extends ListenerAdapter {
                 case "fnCompare":
                      //Must have a name to search for
                     if(numArgs < 1 || !StringUtils.join(args, ' ').contains(";")){
-                        event.getChannel().sendMessage("**Usage: !fnCompare <Epic_Name>;<Epic_Name>\nMake "
+                        event.getChannel().sendMessage("**Usage: !fnCompare <Epic_Name>[:console];<Epic_Name>[:console]\nMake "
                                 + "sure there is a semicolon ( ; ) seperating the player names**").queue();
                         break;
                     }
                     //Get player names
                     ArrayList<String> playerNames = new ArrayList<>(Arrays.asList(StringUtils.join(args, ' ').split(";")));
-                    //Array for the players jsons
-                    ArrayList<JSONObject> tempArray = new ArrayList<>();
-                    //List<String> playerNames = Arrays.asList("ExplodingMuffins", "Please Sign Here", "LitFamSquadBae");
-                    //Get each players most played platform
                     for(String player : playerNames){
-                        tempArray = getAllJsons(player);
-                        if(tempArray.isEmpty()){
+                        if(player.contains(":"))
+                            playerJson = makeRequest(player.substring(player.indexOf(":")+1), player.substring(0, player.indexOf(":")));
+                        else
+                            playerJson = makeRequest("pc", player);
+                    
+                        if(playerJson.has("error")){
                             playerNotFound("One of the given players", event);
                             dbOps.dbUpdate(event, "fnCompare");
                             return;
                         }
-                        jsonArray.add(getFavePlatform(tempArray));
+                        jsonArray.add(playerJson);
                     }
                     //Set each players lifetime stats
                     ArrayList<FortnitePlayer> fnPlayers = new ArrayList<>();
@@ -220,6 +229,7 @@ public class FortniteListener extends ListenerAdapter {
         //Replace spaces for proper url
         epicName = epicName.replace(" ", "%20");
         String urlString;
+        platform = platform.toLowerCase();
         if(platform.equals("xbl"))
             urlString = "https://api.fortnitetracker.com/v1/profile/xbox/" + platform + "(" + epicName + ")";
         else
