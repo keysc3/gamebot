@@ -304,6 +304,7 @@ public class LeagueListener extends ListenerAdapter{
         queueMap.put("ARAM", "Howling Abyss ARAM 5v5");
         queueMap.put("TEAM_BUILDER_RANKED_SOLO", "Solo/Duo 5v5");
         queueMap.put("TB_BLIND_SUMMONERS_RIFT_5x5", "Summoners Rift Blind 5v5");
+        queueMap.put("ONEFORALL_5x5", "One For All 5v5");
         return queueMap;
     }
     
@@ -534,8 +535,10 @@ public class LeagueListener extends ListenerAdapter{
         final CurrentMatch currentGame = summoner.getCurrentMatch();
         //Make sure they are in a game
         if(currentGame.exists()){
+            String queueName = "Unkown";
             //Get game type and duration
-            String queueName = QUEUE_MAP.get(currentGame.getQueue().toString());
+            if(currentGame.getQueue() != null)
+                queueName = QUEUE_MAP.get(currentGame.getQueue().toString());
             final Player player = currentGame.getParticipants().find(summoner);
             Interval interval = new Interval(currentGame.getCreationTime(), DateTime.now());
             //Get proper seconds format
