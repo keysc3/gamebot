@@ -32,10 +32,9 @@ public class GameBot {
      * @throws net.dv8tion.jda.core.exceptions.RateLimitedException
      */
     public static void main(String[] args) throws RateLimitedException {
-        InputStream input = null;
         //Try and catch for exceptions
         try{
-            input = new FileInputStream("/Users/Keeeeys/cmptLabs/Repos/gamebot/GameBot/src/gamebot/gamebot-config.properties");
+            InputStream input = new FileInputStream("src/props/gamebot-config.properties");
             config.load(input);
             //Start the bot, set it to my bots token, attach wanted listeners.
             JDA api = new JDABuilder(AccountType.BOT)
