@@ -10,7 +10,7 @@ import java.util.logging.Logger;
 import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 
 /**
  * Purpose: This class implements a ListenerAdapter for a discord bot. It checks
@@ -70,14 +70,14 @@ public class MyListener extends ListenerAdapter {
                     //Send message in channel it was received
                     event.getChannel().sendMessage("pong!").queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "ping");
+                    //dbOps.dbUpdate(event, "ping");
                     break;
                     //Outputs guy!
                 case "buddy":
                     //Send message in channel it was received
                     event.getChannel().sendMessage("guy!").queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "buddy");
+                    //dbOps.dbUpdate(event, "buddy");
                     break;
                     //Outputs a random number between 1-100, or 1-given number
                 case "roll":
@@ -104,7 +104,7 @@ public class MyListener extends ListenerAdapter {
                     //Send message in channel it was received
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "roll");
+                    //dbOps.dbUpdate(event, "roll");
                     break;
                     //Outputs a siple sentence with the given argument
                 case "gimme":
@@ -120,7 +120,7 @@ public class MyListener extends ListenerAdapter {
                     //Send message in channel it was received
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "gimme");
+                    //dbOps.dbUpdate(event, "gimme");
                     break;
                     //Outputs the given argument backwards
                 case "reverse":
@@ -148,7 +148,7 @@ public class MyListener extends ListenerAdapter {
                     //Send message in channel it was received
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "reverse");
+                    //dbOps.dbUpdate(event, "reverse");
                     break;
             }
         } catch (SQLException | IllegalAccessException ex) {

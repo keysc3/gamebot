@@ -42,6 +42,7 @@ public class GameBot {
                     .addEventListener(new MyListener())
                     .addEventListener(new LeagueListener())
                     .addEventListener(new FortniteListener())
+                    .addEventListener(new OsuListener())
                     .buildBlocking();
             System.out.println("I'm Online!\nI'm Online!");
         }
