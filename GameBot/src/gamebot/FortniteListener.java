@@ -23,7 +23,7 @@ import java.util.logging.Logger;
 import javax.net.ssl.HttpsURLConnection;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -121,11 +121,11 @@ public class FortniteListener extends ListenerAdapter {
                     if(playerJson.has("error")){
                         if(epicName.contains(":")){
                             playerNotFound(epicName.substring(0, epicName.indexOf(":")), event);
-                            dbOps.dbUpdate(event, "fnLifetime");
+                            //dbOps.dbUpdate(event, "fnLifetime");
                         }
                         else{
                             playerNotFound(epicName, event);
-                            dbOps.dbUpdate(event, "fnLifetime");
+                            //dbOps.dbUpdate(event, "fnLifetime");
                         }
                         break;
                     }
@@ -139,7 +139,7 @@ public class FortniteListener extends ListenerAdapter {
                     //Send a message in the channel it was recieved
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "fnLifetime");
+                    //dbOps.dbUpdate(event, "fnLifetime");
                     break;
                     //Outputs a players current season totals and current season solos,duos, and squads totals
                 case "fnCurrent":
@@ -158,11 +158,11 @@ public class FortniteListener extends ListenerAdapter {
                     if(playerJson.has("error")){
                         if(epicName.contains(":")){
                             playerNotFound(epicName.substring(0, epicName.indexOf(":")), event);
-                            dbOps.dbUpdate(event, "fnCurrent");
+                            //dbOps.dbUpdate(event, "fnCurrent");
                         }
                         else{
                             playerNotFound(epicName, event);
-                            dbOps.dbUpdate(event, "fnCurrent");
+                            //dbOps.dbUpdate(event, "fnCurrent");
                         }
                         break;
                     }
@@ -176,7 +176,7 @@ public class FortniteListener extends ListenerAdapter {
                     //Send a message in the channel it was recieved
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "fnCurrent");
+                    //dbOps.dbUpdate(event, "fnCurrent");
                     break;
                 case "fnCompare":
                      //Must have a name to search for
@@ -195,7 +195,7 @@ public class FortniteListener extends ListenerAdapter {
                     
                         if(playerJson.has("error")){
                             playerNotFound("One of the given players", event);
-                            dbOps.dbUpdate(event, "fnCompare");
+                            //dbOps.dbUpdate(event, "fnCompare");
                             return;
                         }
                         jsonArray.add(playerJson);
@@ -207,7 +207,7 @@ public class FortniteListener extends ListenerAdapter {
                     outputString.append(comparePlayerStats(fnPlayers));
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "fnCompare");
+                    //dbOps.dbUpdate(event, "fnCompare");
                     break;
             }
         } catch (SQLException | IllegalAccessException ex) {
@@ -242,7 +242,7 @@ public class FortniteListener extends ListenerAdapter {
         con.setRequestMethod("GET");
         con.setRequestProperty("Accept", "application/json");
         con.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.95 Safari/537.11");
-        con.setRequestProperty("TRN-Api-Key", "746c6319-f383-4a1e-8b87-b18617337950");
+        con.setRequestProperty("TRN-Api-Key", GameBot.config.getProperty("fnKey"));
         int responseCode = con.getResponseCode();
         
         System.out.println("\nSending 'GET' request to URL : " + urlString);

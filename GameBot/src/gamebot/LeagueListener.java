@@ -23,7 +23,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -104,7 +104,7 @@ public class LeagueListener extends ListenerAdapter{
                     outputString.append("**!lolLiveRegion <region> <summoner_name>:** Outputs info about given ***summoner_name***'s live "
                             + "game on the given ***region***\n");
                     //Add use to db
-                    dbOps.dbUpdate(event, "lolHelp");
+                    //dbOps.dbUpdate(event, "lolHelp");
                     //Send message in channel it was received
                     event.getChannel().sendMessage(outputString.toString()).queue();
                     break;
@@ -118,7 +118,7 @@ public class LeagueListener extends ListenerAdapter{
                     //Process the summoner
                     event.getChannel().sendMessage(summoner(args, "NA")).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "lol");
+                    //dbOps.dbUpdate(event, "lol");
                     break;
                     //Outputs info about the given summoner if they are on the given server
                 case "lolRegion":
@@ -134,7 +134,7 @@ public class LeagueListener extends ListenerAdapter{
                     //Process the summoner
                     event.getChannel().sendMessage(summoner(args, regionGiven)).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "lolRegion");
+                    //dbOps.dbUpdate(event, "lolRegion");
                     break;
                     //Outputs info about the Leagues the given summoner is ranked in on the NA server
                 case "lolRanks":
@@ -146,7 +146,7 @@ public class LeagueListener extends ListenerAdapter{
                     //Process the summoner
                     event.getChannel().sendMessage(summonerRanks(args, "NA")).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "lolRanks");
+                    //dbOps.dbUpdate(event, "lolRanks");
                     break;
                     //Outputs info about the Leagues the given summoner is ranked in on the given server
                 case "lolRanksRegion":
@@ -162,7 +162,7 @@ public class LeagueListener extends ListenerAdapter{
                     //Process the summoner
                     event.getChannel().sendMessage(summonerRanks(args, regionGiven)).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "lolRanksRegion");
+                    //dbOps.dbUpdate(event, "lolRanksRegion");
                     break;
                     //Outputs info about the current game the given summoner is in on NA
                 case "lolLive":
@@ -174,7 +174,7 @@ public class LeagueListener extends ListenerAdapter{
                     //Process the summoner
                     event.getChannel().sendMessage(summonerLiveGame(args, "NA")).queue();
                     //Add use to db
-                    dbOps.dbUpdate(event, "lolLive");
+                    //dbOps.dbUpdate(event, "lolLive");
                     break;
                     //Outputs info about the current game the given summoner is in on given region
                 case "lolLiveRegion":
